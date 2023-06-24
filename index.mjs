@@ -17,8 +17,10 @@ const app = createApp({
         //data
         const canvas = ref(null),
             activeLayer = ref(0),
-            tab = null,
-            tab1 = null,
+            tab = ref("one"),
+            tab1 = ref("one"),
+            blendModes = ref("normal"),
+            opacity = ref(0),
             caretaker = reactive(Caretaker.get()),
             layers = reactive(Layers.get()),
             brush = new Brush();
@@ -82,7 +84,9 @@ const app = createApp({
 
         //methods
         const boxActivate = () => {
-            brush.setBrushSelection(false);
+            brush.set({
+                isActive:false
+            });
             box.setBoxSelection(true);
             box.listen()
         }
@@ -133,7 +137,6 @@ const app = createApp({
                 width.value = ww;
                 height.value = hh;
             }
-            console.log(a)
             layers.add("image", {
                 blendMode: "normal"
             }, a);
@@ -178,6 +181,8 @@ const app = createApp({
             mementos,
             tab,
             tab1,
+            blendModes,
+            opacity,
             activeLayer,
             width,
             height,

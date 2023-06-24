@@ -4,7 +4,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Document</title>
+  <title>Iguana - Image processor</title>
   <link href="https://cdn.jsdelivr.net/npm/vuetify@3.0.5/dist/vuetify.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css" rel="stylesheet" />
 </head>
@@ -12,7 +12,7 @@
 <body>
   <div id="app">
     <v-app id="inspire" theme="dark">
-      <v-system-bar class="text-black">
+      <v-system-bar class="text-white">
         <v-menu>
           <template v-slot:activator="{ props }">
             <v-btn variant="text" density="compact" v-bind="props">
@@ -22,10 +22,77 @@
           <v-card min-width="200">
             <v-list>
               <v-list-item color="primary" link @click.prevent="$refs.file.click()">
-                <span>new</span>
+                <span>New</span>
+                <v-file-input v-show="false" ref="file" @change="addImage"></v-file-input>
+              </v-list-item>
+              <v-list-item color="primary" link @click.prevent="$refs.file.click()">
+                <span>Place</span>
                 <v-file-input v-show="false" ref="file" @change="addImage"></v-file-input>
               </v-list-item>
             </v-list>
+          </v-card>
+        </v-menu>
+        <v-menu>
+          <template v-slot:activator="{ props }">
+            <v-btn variant="text" density="compact" v-bind="props">
+              Edit
+            </v-btn>
+          </template>
+          <v-card min-width="200">
+            <v-list>
+              <v-list-item color="primary" link>
+                Undo
+              </v-list-item>
+              <v-list-item color="primary" link>
+                Redo
+              </v-list-item>
+            </v-list>
+          </v-card>
+        </v-menu>
+        <v-menu>
+          <template v-slot:activator="{ props }">
+            <v-btn variant="text" density="compact" v-bind="props">
+              Layer
+            </v-btn>
+          </template>
+          <v-card min-width="200">
+            <v-list>
+              <v-list-item color="primary" link>
+                New layer
+              </v-list-item>
+            </v-list>
+          </v-card>
+        </v-menu>
+        <v-menu>
+          <template v-slot:activator="{ props }">
+            <v-btn variant="text" density="compact" v-bind="props">
+              Filter
+            </v-btn>
+          </template>
+          <v-card min-width="200">
+            <v-list>
+              <v-list-item color="primary" link>
+                Noise
+              </v-list-item>
+            </v-list>
+          </v-card>
+        </v-menu>
+        <v-menu>
+          <template v-slot:activator="{ props }">
+            <v-btn variant="text" density="compact" v-bind="props">
+              About
+            </v-btn>
+          </template>
+          <v-card min-width="200">
+            <v-card-title>
+              Hi There!
+            </v-card-title>
+            <v-card-text>
+              <p class="pa-2">My name is <b>Kithinji Brian</b> and I'm the creator of Iguana.</p>
+              <p class="pa-2">I'm a 22 year old computer programmer. I was born in Nyahururu, Kenya.</p>
+              <p class="pa-2">Iguana is a fun project for me to learn software development.</p>
+              <p class="pa-2">Thank you.</p>
+            </v-card-text>
           </v-card>
         </v-menu>
         <v-spacer />
@@ -58,6 +125,7 @@
               <v-card height="45vh" flat>
                 <v-tabs v-model="tab" density="compact">
                   <v-tab value="one">History</v-tab>
+                  <v-tab value="two">Swatches</v-tab>
                 </v-tabs>
 
                 <v-card-text>
@@ -70,6 +138,7 @@
                         </v-list-item>
                       </v-list>
                     </v-window-item>
+                    <v-window-item value="two"></v-window-item>
                   </v-window>
                 </v-card-text>
               </v-card>
@@ -78,13 +147,39 @@
               <v-card height="45vh" flat>
                 <v-tabs v-model="tab1" density="compact">
                   <v-tab value="one">Layers</v-tab>
+                  <v-tab value="two">channels</v-tab>
                 </v-tabs>
 
                 <v-card-text>
-                  <v-window v-model="tab">
+                  <v-window v-model="tab1">
                     <v-window-item value="one">
+                      <v-container class="pa-0 ma-0">
+                        <v-row>
+                          <v-col cols="12">
+                            <v-select v-model="blendModes" variant="outlined" density="compact" :items="[
+                            'normal',
+                            'multiply',
+                            'screen',
+                            'overlay',
+                            'darken',
+                            'lighten',
+                            'color-dodge',
+                            'color-burn',
+                            'hard-light',
+                            'soft-light',
+                            'difference',
+                            'exclusion',
+                            'hue',
+                            'saturation',
+                            'color',
+                            'luminosity'
+                            ]"></v-select>
+                          </v-col>
+                        </v-row>
+                      </v-container>
                       <v-list v-model="activeLayer" lines="one" style="max-height: 35vh" class="overflow-y-auto">
-                        <v-list-item color="primary" v-for="(layer,n) in listLayers" :key="n" :value="n" @click="activeLayer=n" link>
+                        <v-list-item color="primary" v-for="(layer,n) in listLayers" :key="n" :value="n"
+                          @click="activeLayer=n" link>
                           <template v-slot:prepend>
                             <v-icon @click="setVisibility(n)">{{layer.visible ? 'mdi-eye' : 'mdi-eye-off'}}</v-icon>
                           </template>
@@ -92,6 +187,7 @@
                         </v-list-item>
                       </v-list>
                     </v-window-item>
+                    <v-window-item value="two"></v-window-item>
                   </v-window>
                 </v-card-text>
               </v-card>
@@ -117,13 +213,17 @@
                     </v-list>
                   </v-card>
                 </v-menu>
-                <v-icon icon="mdi-battery" class="mr-2"></v-icon>
+                <v-icon icon="mdi-delete" class="mr-2"></v-icon>
               </v-card>
             </v-col>
           </v-row>
         </v-container>
       </v-navigation-drawer>
-      <v-navigation-drawer rail location="right" permanent></v-navigation-drawer>
+      <v-navigation-drawer rail location="right" permanent>
+        <v-list density="compact" nav>
+          <v-list-item color="primary" prepend-icon="mdi-tune" title="properties" value="properties"></v-list-item>
+        </v-list>
+      </v-navigation-drawer>
     </v-app>
   </div>
   <script type="module" src="index.mjs"></script>
