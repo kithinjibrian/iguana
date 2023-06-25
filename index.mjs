@@ -32,11 +32,11 @@ const app = createApp({
 
         //ui states
         let activeLayer = ref({
-            index:-1,
+            index:0,
             layer:{}
         }),
         activeMemento = ref({
-            index:-1,
+            index:0,
             memento:{}
         })
 
