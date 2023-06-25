@@ -1,5 +1,3 @@
-import layer from "../layer/layer.mjs";
-
 class Caretaker {
     constructor() {
         if (!Caretaker.instance) {
@@ -14,8 +12,8 @@ class Caretaker {
         return this;
     }
 
-    getMementos() {
-        return this.mementos;
+    set(snaps) {
+        this.snaps = snaps
     }
 
     saveMemento(originator) {
@@ -29,9 +27,23 @@ class Caretaker {
     restoreMemento(index) {
         this.index = index;
         const memento = this.mementos[index];
-        const originator = layer.get();
-        originator.restoreFromMemento(memento);
-        return originator;
+        this.snaps.restoreFromMemento(memento.state);
+        return this.snaps;
+    }
+
+    [Symbol.iterator]() {
+        let index = 0;
+        const mementos = this.mementos;
+
+        return {
+            next() {
+                if (index < mementos.length) {
+                    return { value: mementos[index++], done: false }
+                } else {
+                    return { done: true }
+                }
+            }
+        }
     }
 }
 

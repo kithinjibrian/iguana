@@ -1,7 +1,58 @@
+import Pubsub from "../pubsub/pubsub.mjs";
 import Memento from "../memento/memento.mjs";
 
-function clamp(value) {
-    return Math.max(0, Math.min(Math.floor(value), 255))
+class M {
+    static grayscale(data) {
+        for (var i = 0; i < data.length; i += 4) {
+            var avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+            data[i] = avg;
+            data[i + 1] = avg;
+            data[i + 2] = avg;
+        }
+    }
+
+    static image(image) {
+        const canvas = document.createElement("canvas");
+        canvas.width = image.width;
+        canvas.height = image.height;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(image, 0, 0);
+        return () => {
+            return canvas;
+        }
+    }
+
+    static clamp(value) {
+        return Math.max(0, Math.min(Math.floor(value), 255))
+    }
+
+    static grayscale(data) {
+        for (var i = 0; i < data.length; i += 4) {
+            var avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+            data[i] = avg;
+            data[i + 1] = avg;
+            data[i + 2] = avg;
+        }
+    }
+
+    static brightness(value) {
+        return (data) => {
+            for (var i = 0; i < data.length; i += 4) {
+                data[i] = M.clamp(data[i] + value);
+                data[i + 1] = M.clamp(data[i + 1] + value);
+                data[i + 2] = M.clamp(data[i + 2] + value);
+            }
+        }
+    }
+
+    static inverse(data) {
+        for (let i = 0; i < data.length; i += 4) {
+            data[i] = 255 - data[i];         // red
+            data[i + 1] = 255 - data[i + 1]; // green
+            data[i + 2] = 255 - data[i + 2]; // blue
+            // data[i + 3] = data[i + 3];    // alpha (transparency)
+        }
+    }
 }
 
 class Layers {
@@ -17,146 +68,180 @@ class Layers {
         return this;
     }
 
-    getLayers() {
-        return this.layers
+    set(layers) {
+        this.layers = []
+        this.layers.push(...layers)
     }
 
-    setVisibility(index) {
-        const a = this.layers[index]['visible'];
-        this.layers[index]['visible'] = !a
-    }
+    clone(layers) {
+        //clone layers
+        const finalLayers = layers || this.layers;
 
-    removeLayerByType(type) {
-        this.layers = [];
-    }
-
-    createMemento() {
-        var a = this.layers.slice().map(i => ({
+        return finalLayers.slice().map(i => ({
             ...i,
             fn: i.fn.bind(i)
         }))
-        return new Memento(a)
+    }
+
+    patch(index, property, data, notify) {
+        this.layers[index][property] = data;
+        if (notify) this.publishLayerChange();
+    }
+
+    patch2(index, cb, notify) {
+        cb(this.layers[index])
+        if (notify) this.publishLayerChange();
+    }
+
+    createMemento() {
+        //create state snapshot
+        return new Memento(this.clone())
     }
 
     restoreFromMemento(memento) {
-        this.layers = memento.state.slice().map(i => ({
-            ...i,
-            fn: i.fn.bind(i)
-        }));
+        //restore state snapshot
+        this.set(this.clone(memento));
+        this.publishLayerChange()
+    }
+
+    publishLayerChange() {
+        Pubsub.publish("layersChanged", this.clone());
+    }
+
+    unshift(data) {
+        this.layers.unshift(data);
+        this.publishLayerChange()
     }
 
     add(type, ...args) {
         switch (type) {
             case "grayscale":
-                this.layers.unshift({
-                    type: 'grayscale',
-                    visible: true,
-                    action: "applyGrayscale",
-                    fn: this.grayscale
-                })
+                this.grayscale()
                 break;
             case "brightness":
-                this.layers.unshift({
-                    type: "brightness",
-                    visible: true,
-                    action: "applyBrightness",
-                    fn: this.brightness(args[0])
-                });
+                this.brightness(args[0])
                 break;
             case "inverse":
-                this.layers.unshift({
-                    type: 'inverse',
-                    visible: true,
-                    action: "applyInverse",
-                    fn: this.inverse
-                });
+                this.inverse()
                 break;
             case "image":
-                this.layers.unshift({
-                    type: 'image',
-                    visible: true,
-                    opts: args[0],
-                    action: "addImage",
-                    fn: this.image(args[1])
-                });
+                this.image(args[0], args[1])
                 break;
             case "layer":
-                this.layers.unshift({
-                    type: 'layer',
-                    visible: true,
-                    opts: args[0],
-                    action: "addLayer",
-                    fn: this.image(args[1])
-                });
+                this.layer(args[0], args[1]);
                 break;
-            case 'selection':
-                const index = this.layers.findIndex(({ type }) => type == 'selection');
-                if (index != -1) {
-                    this.layers.splice(index, 1);
-                }
-                this.layers.unshift({
-                    type: 'selection',
-                    visible: true,
-                    dim: { ...args[0] },
-                    action: "boxSelection",
-                    fn: () => console.log('orca')
-                });
+            case "selector":
+                this.selector(args[0]);
                 break;
-            case 'brush':
-                this.brushes('brush',...args)
+            case "brush":
+                this.brush("brush", args[0], args[1]);
                 break;
-            case 'eraser':
-                this.brushes('eraser',...args)
+            case "eraser":
+                this.brush("eraser", args[0], args[1]);
                 break;
         }
     }
 
-    brushes(name,...args) {
-        const ae = this.layers[args[0]];
-        let ce = {}
-        if (name in ae) {
-            const de = 'dim' in ae[name] ? ae[name]['dim'] : []
-            ce.dim = [...de, ...args[1]['dim']];
-            ce.opts = args[1]['opts']
+    grayscale() {
+        this.unshift({
+            type: 'grayscale',
+            visible: true,
+            action: "applyGrayscale",
+            fn: M.grayscale
+        })
+    }
+
+    brightness(args) {
+        this.unshift({
+            type: 'brightness',
+            visible: true,
+            action: "applyBrightness",
+            fn: M.brightness(args)
+        })
+    }
+
+    inverse() {
+        this.unshift({
+            type: 'grayscale',
+            visible: true,
+            action: "applyInversion",
+            fn: M.inverse
+        })
+    }
+
+    image(opts, image) {
+        this.unshift({
+            type: 'image',
+            visible: true,
+            opts: opts,
+            action: "addImage",
+            fn: M.image(image)
+        })
+    }
+
+    layer(opts, image) {
+        this.unshift({
+            type: 'layer',
+            visible: true,
+            opts: opts,
+            action: "newLayer",
+            fn: M.image(image)
+        })
+    }
+
+    selector(boxDimensions) {
+        //find any existing selector layer
+        const index = this.layers.findIndex(({ type }) => type === 'selector');
+        if (index != -1) {
+            //if layer found delete it
+            this.layers.splice(index, 1)
         }
-        this.layers[args[0]] = {
-            ...ae,
-            action: "erasing",
-            [name]: ce
+        this.unshift({
+            type: 'selector',
+            visible: true,
+            internal: true,
+            boxDimensions,
+            action: "boxSelection",
+            fn: () => { }
+        })
+    }
+
+    brush(name, index, brush) {
+        let layer = this.layers[index];
+        let d = {}
+        if (name in layer) {
+            let p = 'brushPoints' in layer[name] ? layer[name]['brushPoints'] : [];
+            d['brushPoints'] = [...p, ...brush['brushPoints']];
+            d['opts'] = brush['opts']
+        }
+        if(name === 'eraser') {
+            layer["brushes"] = {}
+        }
+
+        if(name === "brush") {
+            layer["eraser"] = {}
+        }
+        layer.fn = M.image(layer.fn())
+        this.layers[index] = {
+            ...layer,
+            action:`${name}`,
+            [name]: d
         };
+        this.publishLayerChange()
     }
 
-    grayscale(data) {
-        for (var i = 0; i < data.length; i += 4) {
-            var avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-            data[i] = avg;
-            data[i + 1] = avg;
-            data[i + 2] = avg;
-        }
-    }
+    [Symbol.iterator]() {
+        let index = 0;
+        const layers = this.layers;
 
-    brightness(value) {
-        return (data) => {
-            for (var i = 0; i < data.length; i += 4) {
-                data[i] = clamp(data[i] + value);
-                data[i + 1] = clamp(data[i + 1] + value);
-                data[i + 2] = clamp(data[i + 2] + value);
+        return {
+            next() {
+                if (index < layers.length) {
+                    return { value: layers[index++], done: false }
+                } else {
+                    return { done: true }
+                }
             }
-        }
-    }
-
-    inverse(data) {
-        for (let i = 0; i < data.length; i += 4) {
-            data[i] = 255 - data[i];         // red
-            data[i + 1] = 255 - data[i + 1]; // green
-            data[i + 2] = 255 - data[i + 2]; // blue
-            // data[i + 3] = data[i + 3];    // alpha (transparency)
-        }
-    }
-
-    image(image) {
-        return () => {
-            return image
         }
     }
 }

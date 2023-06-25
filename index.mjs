@@ -1,11 +1,11 @@
-import Event from "./event/event.mjs";
-import pubsub from "./pubsub/pubsub.mjs";
-import Box from "./tools/selection/box.mjs";
-import Brush from "./tools/brushes/brush.mjs";
-import Renderer from "./renderer/renderer.mjs";
 import Layers from "./layer/layer.mjs";
-import loadImage from "./utils/upload.mjs";
+import Pubsub from "./pubsub/pubsub.mjs";
 import Caretaker from "./memento/caretaker.mjs";
+import Renderer from "./renderer/renderer.mjs";
+import loadImage from "./utils/upload.mjs";
+import Event from "./event/event.mjs";
+import Box from "./tools/selectors/box.mjs";
+import Brush from "./tools/brushes/brush.mjs";
 
 const { createApp, ref, onMounted, reactive, computed, watch } = Vue;
 const { createVuetify } = Vuetify;
@@ -14,185 +14,208 @@ const vuetify = createVuetify()
 
 const app = createApp({
     setup() {
-        //data
-        const canvas = ref(null),
-            activeLayer = ref(0),
-            tab = ref("one"),
-            tab1 = ref("one"),
-            blendModes = ref("normal"),
-            opacity = ref(0),
-            caretaker = reactive(Caretaker.get()),
-            layers = reactive(Layers.get()),
-            brush = new Brush();
+        //internal classes
+        let layers = reactive(Layers.get());
+        const caretaker = reactive(Caretaker.get());
+        const box = Box.get();
+        const brush = new Brush("brush");
+        const eraser = new Brush("eraser","destination-out")
 
-        let isBoxSelected = false,
-            isBrushSelected = false;
-        //classes that use canvas after dom is mounted
-        let event,
-            box,
-            renderer,
-            listLayers = ref(layers.getLayers()),
-            width = ref(0),
-            height = ref(0);
-        //computed values
-        const mementos = computed(() => {
-            return caretaker.getMementos();
+        caretaker.set(layers)
+        //those that wait for DOM
+        let renderer, event;
+
+        //v models
+        const tabHistorySwatch = ref("one"), 
+              tabLayerChannel = ref("one"),
+              blendModes = ref("normal");
+
+        //ui states
+        let activeLayer = ref({
+            index:-1,
+            layer:{}
+        }),
+        activeMemento = ref({
+            index:-1,
+            memento:{}
         })
-        //onmount dom
-        onMounted(() => {
-            const cnvs = canvas.value;
-            renderer = new Renderer(cnvs);
-            event = new Event(cnvs).listen();
-            box = Box.get();
-        });
+
+        //dom elements
+        let canvas = ref({
+            width:0,
+            height:0
+        }),
+        on = ref(false)
 
         //event listeners
-        pubsub.subscribe("drawbox", (dim) => {
-            layers.add("selection", dim);
-            renderer.render();
+        Pubsub.subscribe("drawingBoxSelection",(boxDimensions)=>{
+            layers.add("selector",boxDimensions)
         })
 
-        pubsub.subscribe("drawn", (dim) => {
-            layers.add("selection", dim);
-            renderer.render();
-            caretaker.saveMemento(layers);
+        Pubsub.subscribe("boxSelectionDone",(boxDimensions)=>{
+            layers.add("selector",boxDimensions)
+            caretaker.saveMemento(layers)
         })
 
-        pubsub.subscribe("drawbrush", (obj) => {
-            layers.add("brush", activeLayer.value, obj);
-            renderer.render();
+        //event listeners
+        Pubsub.subscribe("brushDrawing",(brush)=>{
+            layers.add("brush",activateLayer.value.index,brush)
         })
 
-        pubsub.subscribe("brushdrawn", (obj) => {
-            layers.add("brush", activeLayer.value, obj);
-            renderer.render();
-            caretaker.saveMemento(layers);
-            brush.reset()
+        Pubsub.subscribe("brushDrawingDone",(brush)=>{
+            layers.add("brush",activateLayer.value.index,brush)
+            caretaker.saveMemento(layers)
         })
 
-        pubsub.subscribe("iserasing", (obj) => {
-            layers.add("eraser", activeLayer.value, obj);
-            renderer.render();
+        //event listeners
+        Pubsub.subscribe("eraserDrawing",(brush)=>{
+            layers.add("eraser",activateLayer.value.index,brush)
         })
 
-        pubsub.subscribe("erasingdone", (obj) => {
-            layers.add("eraser", activeLayer.value, obj);
-            renderer.render();
-            caretaker.saveMemento(layers);
-            brush.reset()
+        Pubsub.subscribe("eraserDrawingDone",(brush)=>{
+            layers.add("eraser",activateLayer.value.index,brush)
+            caretaker.saveMemento(layers)
+        })
+
+        //watch
+        watch(blendModes,(newBlendMode)=>{
+            layers.patch2(activateLayer.value.index,(layer)=>{
+                layer['opts']['blendMode'] = newBlendMode;
+            },true)
         })
 
         //methods
-        const boxActivate = () => {
-            brush.set({
-                isActive:false
+        const newImage = async (image) => {
+            let loadedImage = await loadImage(image)
+            Pubsub.publish("init",{
+                width:loadedImage.width,
+                height:loadedImage.height
             });
-            box.setBoxSelection(true);
-            box.listen()
+            layers.add("image",{
+                blendMode:"normal",
+                scale:true
+            },loadedImage);
+            on.value = true
+            caretaker.saveMemento(layers)
         }
 
-        const brushActivate = () => {
-            box.setBoxSelection(false);
-            brush.set({
-                isActive:true,
-                blendMode:'multiply'
-            });
-            brush.listen()
+        const placeImage = async (image) => {
+            let loadedImage = await loadImage(image)
+            layers.add("image",{
+                blendMode:"normal"
+            },loadedImage);
+            caretaker.saveMemento(layers)
         }
 
-        const eraserActivate = () => {
-            box.setBoxSelection(false);
-            brush.set({
-                isActive:true,
-                blendMode:'destination-out',
-                eventOn:"iserasing",
-                eventDone:"erasingdone"
-            });
-            brush.listen()
-        }
-
-        const activate = (e) => {
-            switch (e) {
-                case "box":
-                    boxActivate()
-                    break;
-                case "brush":
-                    brushActivate()
-                    break;
-                case "eraser":
-                    eraserActivate()
-                    break;
-            }
-        }
-
-        const addImage = async (image) => {
-            let a = await loadImage(image);
-            if (layers.getLayers() == 0) {
-                const { width: w, height: h } = a;
-                renderer.set({ width: w, height: h });
-                const { width: ww, height: hh } = renderer.getCanvas();
-                let b = new Image(ww,hh)
-                b.src = a.src;
-                a = b
-                width.value = ww;
-                height.value = hh;
-            }
-            layers.add("image", {
-                blendMode: "normal"
-            }, a);
-            renderer.render();
-            caretaker.saveMemento(layers);
-        }
-
-        const addLayer = async () => {
-            const a = new Image();
-            const { width, height } = renderer.getCanvas()
-            a.width = width;
-            a.height = height;
-            layers.add("layer", {
-                blendMode: "normal"
-            }, a)
-            renderer.render();
+        const newLayer = () => {
+            const image = new Image(canvas.value.width,canvas.value.height)
+            layers.add("layer",{
+                blendMode:"normal"
+            },image)
             caretaker.saveMemento(layers)
         }
 
         const addAdjustment = (a, ...args) => {
             layers.add(a, ...args)
-            renderer.render();
             caretaker.saveMemento(layers);
         }
 
-        const urdo = (a) => {
-            caretaker.restoreMemento(a);
-            listLayers.value = layers.getLayers();
-            renderer.render();
+        const setVisibility = (index,state) => {
+            layers.patch(index,"visible",!state,true)
         }
 
-        const setVisibility = (index) => {
-            layers.setVisibility(index)
-            renderer.render()
+        const setActiveLayer = (index,layer) => {
+            activeLayer.value = {
+                layer,
+                index
+            };
+            blendModes.value = layer.opts.blendMode
         }
+
+        const revertStateTo = (index,memento) => {
+            activeMemento.value = {
+                index,
+                memento
+            }
+            caretaker.restoreMemento(index);
+        }
+
+        const stepBack = () => {
+            const index = activeMemento.value.index;
+            const newIndex = index - 1
+            if(newIndex >= 0) {
+                revertStateTo(newIndex)
+            }
+        }
+
+        const stepForward = () => {
+            const ck = [];
+            const index = activeMemento.value.index;
+            for(const a of caretaker) {
+                ck.push(a)
+            }
+            const newIndex = index + 1
+            if(newIndex < ck.length) {
+                revertStateTo(newIndex)
+            }
+        }
+
+        //box
+        const boxActivate = () => {
+            box.listen()
+        }
+
+        const brushActivate = () => {
+            brush.listen()
+        }
+
+        const eraserActivate = () => {
+            eraser.listen()
+        }
+
+        const activate = (tool) => {
+            Pubsub.publish("eventId",tool);
+            switch(tool) {
+                case "box":
+                    boxActivate();
+                    break;
+                case "brush":
+                    brushActivate();
+                    break;
+                case "eraser":
+                    eraserActivate();
+                    break;
+            }
+        }
+
+        //dom loading
+        onMounted(() => {
+            renderer = new Renderer(canvas.value)
+            event = new Event(canvas.value)
+        })
 
         return {
-            canvas,
-            isBoxSelected,
-            isBrushSelected,
-            listLayers,
-            mementos,
-            tab,
-            tab1,
+            //data
+            layers,
+            caretaker,
+            //v models
+            tabHistorySwatch,
+            tabLayerChannel,
             blendModes,
-            opacity,
-            activeLayer,
-            width,
-            height,
+            //dom elements
+            canvas,
+            on,
             //methods
+            newImage,
+            placeImage,
+            setVisibility,
+            newLayer,
             activate,
-            addImage,
-            addLayer,
+            setActiveLayer,
+            revertStateTo,
             addAdjustment,
-            urdo,
-            setVisibility
+            stepBack,
+            stepForward
         }
     }
 })

@@ -6,15 +6,25 @@ class Pubsub {
         this.subscribers = new Map();
         return Pubsub.instance;
     }
+    
     get() {
         return this;
     }
+
     subscribe(event, fn) {
         if (this.subscribers.has(event)) {
             this.subscribers.get(event).push(fn);
         } else {
             this.subscribers.set(event, [fn]);
         }
+    }
+
+    subscribeOnce(event,fn) {
+        if (this.subscribers.has(event)) {
+            this.subscribers.get(event)[0] = fn;
+        } else {
+            this.subscribers.set(event, [fn]);
+        }  
     }
 
     unsubcribe(event) {

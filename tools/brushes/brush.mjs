@@ -1,17 +1,16 @@
 import Pubsub from "../../pubsub/pubsub.mjs"
-import Listen from "../listen.mjs";
 
-class Dim {
+class Points {
     constructor() {
         this.index = 0
-        this.dim = [[]]
+        this.points = [[]]
     }
 
-    push(dim) {
-        if (this.dim[this.index] === undefined) {
-            this.dim[this.index] = [dim]
+    push(points) {
+        if (this.points[this.index] === undefined) {
+            this.points[this.index] = [points]
         } else {
-            this.dim[this.index].push(dim)
+            this.points[this.index].push(points)
         }
     }
 
@@ -19,67 +18,58 @@ class Dim {
         this.index += 1;
     }
 
-    getDim() {
-        return [...this.dim];
+    clone() {
+        return [...this.points];
     }
 }
 
 export default class Brush {
-    constructor() {
-        this.pubsub = Pubsub.get();
+    constructor(name,blendMode) {
         this.isMouseDown = false;
-        this.isBrushSelected = false;
-        this._listen = Listen.get()
-        this.dim = new Dim();
-    }
-
-    set(opts) {
-        const def = {
-            isActive:false,
-            blendMode:'normal',
-            eventOn:"drawbrush",
-            eventDone:"brushdrawn"
-        }
-        Object.assign(def,opts)
-        this.isBrushSelected = def.isActive;
-        this.blendMode = def.blendMode;
-        this.eventOn = def.eventOn;
-        this.eventDone = def.eventDone;
+        this.points = new Points();
+        this.name = name;
+        this.blendMode = blendMode || 'source-over'
     }
 
     reset() {
-        this.dim = new Dim()
+        this.points = new Points()
     }
 
     listen() {
         const self = this;
-        this._listen.listen({
-            mousedown:(a) => {
-                self.isMouseDown = true
-                self.dim.push(a)
-            },
-            mouseup:()=>{
-                self.isMouseDown = false;
-                self.dim.next()
-                self.pubsub.publish(this.eventDone,{
-                    dim:self.dim.getDim(),
-                    opts:{
-                        blendMode:this.blendMode
-                    }
-                })
-            },
-            mousemove:(e) => {
-                if(!self.isMouseDown || !self.isBrushSelected) return;
-                self.dim.push(e)
-                self.pubsub.publish(this.eventOn,{
-                    dim:self.dim.getDim(),
-                    opts:{
-                        blendMode:this.blendMode
-                    }
-                })
-            }
+        Pubsub.subscribeOnce("mousedown",(id,event)=>{
+            if(id!==self.name) return;
+            self.isMouseDown = true;
+            self.points.push({
+                x:event.offsetX,
+                y:event.offsetY
+            })
         })
-
+        Pubsub.subscribeOnce("mouseup",(id,event)=>{
+            if(id!==self.name) return;
+            self.isMouseDown = false;
+            self.points.next()
+            Pubsub.publish(`${self.name}DrawingDone`,{
+                brushPoints:self.points.clone(),
+                opts:{
+                    blendMode:self.blendMode
+                }
+            })
+            self.reset()
+        })
+        Pubsub.subscribeOnce("mousemove",(id,event)=>{
+            if(id!==self.name || !self.isMouseDown) return;
+            self.points.push({
+                x:event.offsetX,
+                y:event.offsetY
+            });
+            Pubsub.publish(`${self.name}Drawing`,{
+                brushPoints:self.points.clone(),
+                opts:{
+                    blendMode:self.blendMode
+                }
+            })
+        })
         return this;
     }
 }
