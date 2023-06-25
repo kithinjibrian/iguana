@@ -73,7 +73,7 @@
           </template>
           <v-card min-width="200">
             <v-list>
-              <v-list-item color="primary" link>
+              <v-list-item color="primary" @click="addFilter('noise',0.5)" link>
                 Noise
               </v-list-item>
             </v-list>
@@ -100,7 +100,7 @@
         <v-spacer />
       </v-system-bar>
       <v-navigation-drawer rail permanent>
-        <v-list density="compact" nav>
+        <v-list density="compact" mandatory nav>
           <v-list-item color="primary" prepend-icon="mdi-rectangle-outline" title="box" value="box"
             @click="activate('box')"></v-list-item>
           <v-list-item color="primary" prepend-icon="mdi-brush" title="brush" value="brush"
@@ -180,15 +180,41 @@
                         </v-row>
                       </v-container>
                       <v-list lines="one" style="max-height: 35vh" class="overflow-y-auto">
-                        <v-list-item color="primary" v-for="(layer,n) in layers" :key="n" :value="n"
-                          @click="setActiveLayer(n,layer)" link>
+                        <v-list-group v-for="(layer,n) in Array.from(layers)" :key="n">
+                          <template v-slot:activator="{ props }">
+                            <v-list-item v-bind="props" :title="layer.type">
+                              <template v-slot:prepend>
+                                <v-icon @click="setVisibility(n,layer.visible)">{{layer.visible ? 'mdi-eye' : 'mdi-eye-off'}}</v-icon>
+                              </template>
+                            </v-list-item>
+                          </template>
+                          <v-list-item
+                          v-if="layer.filters.length > 0"
+                          v-for="(filter,n2) in layer.filters"
+                          :key="n2"
+                          :title="filter.type"
+                          :value="filter.type">
+                            <template v-slot:prepend>
+                              <v-icon @click="setFilterVisibility(n,n2,filter.visible)">{{filter.visible ? 'mdi-eye' : 'mdi-eye-off'}}</v-icon>
+                            </template>
+                          </v-list-item>
+                        </v-list-group>
+                      </v-list>
+                      <!-- <v-list lines="one" style="max-height: 35vh" class="overflow-y-auto">
+                        <v-list-item color="primary"
+                          v-for="(layer,n) in Array.from(layers)/*.filter(({internal})=>!internal)*/" :key="n"
+                          :value="n" @click="setActiveLayer(n,layer)" link>
                           <template v-slot:prepend>
                             <v-icon @click="setVisibility(n,layer.visible)">{{layer.visible ? 'mdi-eye' :
                               'mdi-eye-off'}}</v-icon>
                           </template>
-                          <v-list-item-title v-text="layer.type" contenteditable="true"></v-list-item-title>
+                          <v-list-group>
+                            <template v-slot:activator="{ props }">
+                              <v-list-item v-bind="props" prepend-icon="mdi-account-circle" title="Users"></v-list-item>
+                            </template>
+                          </v-list-group>
                         </v-list-item>
-                      </v-list>
+                      </v-list>-->
                     </v-window-item>
                     <v-window-item value="two"></v-window-item>
                   </v-window>

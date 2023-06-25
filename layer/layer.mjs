@@ -2,14 +2,6 @@ import Pubsub from "../pubsub/pubsub.mjs";
 import Memento from "../memento/memento.mjs";
 
 class M {
-    static grayscale(data) {
-        for (var i = 0; i < data.length; i += 4) {
-            var avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-            data[i] = avg;
-            data[i + 1] = avg;
-            data[i + 2] = avg;
-        }
-    }
 
     static image(image) {
         const canvas = document.createElement("canvas");
@@ -24,6 +16,19 @@ class M {
 
     static clamp(value) {
         return Math.max(0, Math.min(Math.floor(value), 255))
+    }
+
+    static noise(factor) {
+        return (data) => {
+            for (var i = 0; i < data.length; i += 4) {
+                var noiseR = (Math.random() - 0.5) * factor * 255;
+                var noiseG = (Math.random() - 0.5) * factor * 255;
+                var noiseB = (Math.random() - 0.5) * factor * 255;
+                data[i] = M.clamp(data[i] + noiseR);
+                data[i + 1] = M.clamp(data[i + 1] + noiseG);
+                data[i + 2] = M.clamp(data[i + 2] + noiseB);
+            }
+        }
     }
 
     static grayscale(data) {
@@ -124,6 +129,9 @@ class Layers {
             case "inverse":
                 this.inverse()
                 break;
+            case "noise":
+                this.noise(args[0], args[1])
+                break;
             case "image":
                 this.image(args[0], args[1])
                 break;
@@ -146,15 +154,41 @@ class Layers {
         this.unshift({
             type: 'grayscale',
             visible: true,
+            internal: false,
             action: "applyGrayscale",
             fn: M.grayscale
         })
+    }
+
+    noise(index, factor) {
+        const layer = this.layers[index];
+        let f = [];
+        if ("filters" in layer) {
+            const c = layer['filters'].slice().map(i => {
+                return i.bind(i)
+            })
+            f = [...c, {
+                type:"noise",
+                visible: true,
+                fn: M.noise(factor)
+            }]
+        } else {
+            f.push({
+                type:"noise",
+                visible: true,
+                fn: M.noise(factor)
+            })
+        }
+        layer['filters'] = f;
+        layer['action'] = 'AddNoiseFilter'
+        this.publishLayerChange()
     }
 
     brightness(args) {
         this.unshift({
             type: 'brightness',
             visible: true,
+            internal: false,
             action: "applyBrightness",
             fn: M.brightness(args)
         })
@@ -164,6 +198,7 @@ class Layers {
         this.unshift({
             type: 'grayscale',
             visible: true,
+            internal: false,
             action: "applyInversion",
             fn: M.inverse
         })
@@ -173,7 +208,9 @@ class Layers {
         this.unshift({
             type: 'image',
             visible: true,
+            internal: false,
             opts: opts,
+            filters:[],
             action: "addImage",
             fn: M.image(image)
         })
@@ -183,6 +220,7 @@ class Layers {
         this.unshift({
             type: 'layer',
             visible: true,
+            internal: false,
             opts: opts,
             action: "newLayer",
             fn: M.image(image)
@@ -200,6 +238,9 @@ class Layers {
             type: 'selector',
             visible: true,
             internal: true,
+            opts: {
+                blendMode: 'normal'
+            },
             boxDimensions,
             action: "boxSelection",
             fn: () => { }
@@ -214,17 +255,17 @@ class Layers {
             d['brushPoints'] = [...p, ...brush['brushPoints']];
             d['opts'] = brush['opts']
         }
-        if(name === 'eraser') {
+        if (name === 'eraser') {
             layer["brushes"] = {}
         }
 
-        if(name === "brush") {
+        if (name === "brush") {
             layer["eraser"] = {}
         }
         layer.fn = M.image(layer.fn())
         this.layers[index] = {
             ...layer,
-            action:`${name}`,
+            action: `${name}`,
             [name]: d
         };
         this.publishLayerChange()

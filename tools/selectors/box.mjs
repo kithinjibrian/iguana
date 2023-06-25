@@ -27,7 +27,6 @@ class Box {
             if (self.hasDrawn) {
                 self.boxDimensions = {}
                 Pubsub.publish("boxSelectionDone", {...self.boxDimensions});
-                //self.hasDrawn = false;
             } else {
                 self.isMouseDown = true
                 self.boxDimensions.x = event.offsetX;
@@ -39,7 +38,7 @@ class Box {
             self.isMouseDown = false;
             self.hasDrawn = !self.hasDrawn
             //return new box dimensions for immutability
-            if(!self.hasDrawn) {
+            if(self.hasDrawn) {
                 Pubsub.publish("boxSelectionDone", { ...self.boxDimensions })
             }
         })

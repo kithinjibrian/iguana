@@ -19,99 +19,99 @@ const app = createApp({
         const caretaker = reactive(Caretaker.get());
         const box = Box.get();
         const brush = new Brush("brush");
-        const eraser = new Brush("eraser","destination-out")
+        const eraser = new Brush("eraser", "destination-out")
 
         caretaker.set(layers)
         //those that wait for DOM
         let renderer, event;
 
         //v models
-        const tabHistorySwatch = ref("one"), 
-              tabLayerChannel = ref("one"),
-              blendModes = ref("normal");
+        const tabHistorySwatch = ref("one"),
+            tabLayerChannel = ref("one"),
+            blendModes = ref("normal");
 
         //ui states
         let activeLayer = ref({
-            index:0,
-            layer:{}
+            index: 0,
+            layer: {}
         }),
-        activeMemento = ref({
-            index:0,
-            memento:{}
-        })
+            activeMemento = ref({
+                index: 0,
+                memento: {}
+            })
 
         //dom elements
         let canvas = ref({
-            width:0,
-            height:0
+            width: 0,
+            height: 0
         }),
-        on = ref(false)
+            on = ref(false);
 
         //event listeners
-        Pubsub.subscribe("drawingBoxSelection",(boxDimensions)=>{
-            layers.add("selector",boxDimensions)
+        Pubsub.subscribe("drawingBoxSelection", (boxDimensions) => {
+            layers.add("selector", boxDimensions)
         })
 
-        Pubsub.subscribe("boxSelectionDone",(boxDimensions)=>{
-            layers.add("selector",boxDimensions)
+        Pubsub.subscribe("boxSelectionDone", (boxDimensions) => {
+            layers.add("selector", boxDimensions)
             caretaker.saveMemento(layers)
         })
 
         //event listeners
-        Pubsub.subscribe("brushDrawing",(brush)=>{
-            layers.add("brush",activeLayer.value.index,brush)
+        Pubsub.subscribe("brushDrawing", (brush) => {
+            layers.add("brush", activeLayer.value.index, brush)
         })
 
-        Pubsub.subscribe("brushDrawingDone",(brush)=>{
-            layers.add("brush",activeLayer.value.index,brush)
+        Pubsub.subscribe("brushDrawingDone", (brush) => {
+            layers.add("brush", activeLayer.value.index, brush)
             caretaker.saveMemento(layers)
         })
 
         //event listeners
-        Pubsub.subscribe("eraserDrawing",(brush)=>{
-            layers.add("eraser",activeLayer.value.index,brush)
+        Pubsub.subscribe("eraserDrawing", (brush) => {
+            layers.add("eraser", activeLayer.value.index, brush)
         })
 
-        Pubsub.subscribe("eraserDrawingDone",(brush)=>{
-            layers.add("eraser",activeLayer.value.index,brush)
+        Pubsub.subscribe("eraserDrawingDone", (brush) => {
+            layers.add("eraser", activeLayer.value.index, brush)
             caretaker.saveMemento(layers)
         })
 
         //watch
-        watch(blendModes,(newBlendMode)=>{
-            layers.patch2(activeLayer.value.index,(layer)=>{
+        watch(blendModes, (newBlendMode) => {
+            layers.patch2(activeLayer.value.index, (layer) => {
                 layer['opts']['blendMode'] = newBlendMode;
-            },true)
+            }, true)
         })
 
         //methods
         const newImage = async (image) => {
             let loadedImage = await loadImage(image)
-            Pubsub.publish("init",{
-                width:loadedImage.width,
-                height:loadedImage.height
+            Pubsub.publish("init", {
+                width: loadedImage.width,
+                height: loadedImage.height
             });
-            layers.add("image",{
-                blendMode:"normal",
-                scale:true
-            },loadedImage);
+            layers.add("image", {
+                blendMode: "normal",
+                scale: true
+            }, loadedImage);
             on.value = true
             caretaker.saveMemento(layers)
         }
 
         const placeImage = async (image) => {
             let loadedImage = await loadImage(image)
-            layers.add("image",{
-                blendMode:"normal"
-            },loadedImage);
+            layers.add("image", {
+                blendMode: "normal"
+            }, loadedImage);
             caretaker.saveMemento(layers)
         }
 
         const newLayer = () => {
-            const image = new Image(canvas.value.width,canvas.value.height)
-            layers.add("layer",{
-                blendMode:"normal"
-            },image)
+            const image = new Image(canvas.value.width, canvas.value.height)
+            layers.add("layer", {
+                blendMode: "normal"
+            }, image)
             caretaker.saveMemento(layers)
         }
 
@@ -120,11 +120,22 @@ const app = createApp({
             caretaker.saveMemento(layers);
         }
 
-        const setVisibility = (index,state) => {
-            layers.patch(index,"visible",!state,true)
+        const addFilter = (a, ...args) => {
+            layers.add(a, activeLayer.value.index, args)
+            caretaker.saveMemento(layers)
         }
 
-        const setActiveLayer = (index,layer) => {
+        const setVisibility = (index, state) => {
+            layers.patch(index, "visible", !state, true)
+        }
+
+        const setFilterVisibility = (layerIndex, filterIndex, state) => {
+            layers.patch2(layerIndex, (layer) => {
+                layer['filters'][filterIndex]['visible'] = !state
+            },true)
+        }
+
+        const setActiveLayer = (index, layer) => {
             activeLayer.value = {
                 layer,
                 index
@@ -132,7 +143,7 @@ const app = createApp({
             blendModes.value = layer.opts.blendMode
         }
 
-        const revertStateTo = (index,memento) => {
+        const revertStateTo = (index, memento) => {
             activeMemento.value = {
                 index,
                 memento
@@ -143,7 +154,7 @@ const app = createApp({
         const stepBack = () => {
             const index = activeMemento.value.index;
             const newIndex = index - 1
-            if(newIndex >= 0) {
+            if (newIndex >= 0) {
                 revertStateTo(newIndex)
             }
         }
@@ -151,11 +162,11 @@ const app = createApp({
         const stepForward = () => {
             const ck = [];
             const index = activeMemento.value.index;
-            for(const a of caretaker) {
+            for (const a of caretaker) {
                 ck.push(a)
             }
             const newIndex = index + 1
-            if(newIndex < ck.length) {
+            if (newIndex < ck.length) {
                 revertStateTo(newIndex)
             }
         }
@@ -174,8 +185,8 @@ const app = createApp({
         }
 
         const activate = (tool) => {
-            Pubsub.publish("eventId",tool);
-            switch(tool) {
+            Pubsub.publish("eventId", tool);
+            switch (tool) {
                 case "box":
                     boxActivate();
                     break;
@@ -209,11 +220,13 @@ const app = createApp({
             newImage,
             placeImage,
             setVisibility,
+            setFilterVisibility,
             newLayer,
             activate,
             setActiveLayer,
             revertStateTo,
             addAdjustment,
+            addFilter,
             stepBack,
             stepForward
         }

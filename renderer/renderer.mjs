@@ -43,6 +43,13 @@ export default class Renderer {
                 case "image":
                 case "layer":
                     this.drawImage(layer.opts, layer.fn())
+                    if ('filters' in layer) {
+                        layer['filters'].map(i => {
+                            if(i.visible) {
+                                this.applyFilters(i.fn)
+                            }
+                        })
+                    }
                     if ("brush" in layer && "brushPoints" in layer['brush']) {
                         layer['brush']['brushPoints'].map(i => this.drawBrush(layer.fn(), i, layer['brush']['opts']['blendMode']));
                     }
@@ -76,6 +83,13 @@ export default class Renderer {
         }
     }
 
+    applyFilters(fn) {
+        var imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
+        var data = imageData.data;
+        fn(data)
+        this.ctx.putImageData(imageData, 0, 0);
+    }
+
     drawBrush(canvas, points, blendMode) {
         let ctx = canvas.getContext("2d");
         if (points.length > 3) {
@@ -104,6 +118,7 @@ export default class Renderer {
     }
 
     drawSelectorBox(dimensions) {
+        this.ctx.globalCompositeOperation = "normal"
         const { x, y, x2, y2 } = dimensions;
         this.ctx.strokeStyle = "red";
         this.ctx.strokeRect(x, y, x2 - x, y2 - y)
