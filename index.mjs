@@ -59,27 +59,27 @@ const app = createApp({
 
         //event listeners
         Pubsub.subscribe("brushDrawing",(brush)=>{
-            layers.add("brush",activateLayer.value.index,brush)
+            layers.add("brush",activeLayer.value.index,brush)
         })
 
         Pubsub.subscribe("brushDrawingDone",(brush)=>{
-            layers.add("brush",activateLayer.value.index,brush)
+            layers.add("brush",activeLayer.value.index,brush)
             caretaker.saveMemento(layers)
         })
 
         //event listeners
         Pubsub.subscribe("eraserDrawing",(brush)=>{
-            layers.add("eraser",activateLayer.value.index,brush)
+            layers.add("eraser",activeLayer.value.index,brush)
         })
 
         Pubsub.subscribe("eraserDrawingDone",(brush)=>{
-            layers.add("eraser",activateLayer.value.index,brush)
+            layers.add("eraser",activeLayer.value.index,brush)
             caretaker.saveMemento(layers)
         })
 
         //watch
         watch(blendModes,(newBlendMode)=>{
-            layers.patch2(activateLayer.value.index,(layer)=>{
+            layers.patch2(activeLayer.value.index,(layer)=>{
                 layer['opts']['blendMode'] = newBlendMode;
             },true)
         })
