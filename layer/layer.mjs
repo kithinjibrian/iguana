@@ -1,16 +1,36 @@
 import Pubsub from "../pubsub/pubsub.mjs";
 import Memento from "../memento/memento.mjs";
 
-class M {
+export class M {
 
-    static image(image) {
+    static image2(image,w,h) {
         const canvas = document.createElement("canvas");
-        canvas.width = image.width;
-        canvas.height = image.height;
+        canvas.width = w || image.width;
+        canvas.height = h || image.height;
         const ctx = canvas.getContext("2d");
-        ctx.drawImage(image, 0, 0);
+        ctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, w, h);
         return () => {
             return canvas;
+        }
+    }
+
+    static image(scale,opts) {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        if(scale) {
+            canvas.width = opts.w
+            canvas.height = opts.h
+            ctx.drawImage(opts.image,0,0,opts.image.width,opts.image.height,0,0,opts.w,opts.h)
+            return () => {
+                return canvas
+            }
+        } else {
+            canvas.width = opts.image.width;
+            canvas.height = opts.image.height;
+            ctx.drawImage(opts.image,0,0)
+            return () => {
+                return canvas
+            }
         }
     }
 
@@ -31,31 +51,121 @@ class M {
         }
     }
 
-    static grayscale(data) {
-        for (var i = 0; i < data.length; i += 4) {
-            var avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
-            data[i] = avg;
-            data[i + 1] = avg;
-            data[i + 2] = avg;
+    static colorFill(r, g, b) {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d")
+        const fn = (data) => {
+            for (var i = 0; i < data.length; i += 4) {
+                data[i] = r;
+                data[i + 1] = g;
+                data[i + 2] = b;
+            }
+        }
+
+        return (image) => {
+            canvas.width = image.width;
+            canvas.height = image.height;
+            ctx.drawImage(image, 0, 0);
+            var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            var data = imageData.data;
+            fn(data)
+            ctx.putImageData(imageData, 0, 0);
+            return canvas;
+        }
+    }
+
+    static grayscale() {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d")
+        const fn = (data) => {
+            for (var i = 0; i < data.length; i += 4) {
+                var avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                data[i] = avg;
+                data[i + 1] = avg;
+                data[i + 2] = avg;
+            }
+        }
+
+        return (image) => {
+            canvas.width = image.width;
+            canvas.height = image.height;
+            ctx.drawImage(image, 0, 0);
+            var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            var data = imageData.data;
+            fn(data)
+            ctx.putImageData(imageData, 0, 0);
+            return canvas;
+        }
+    }
+
+    static threshold(threshold) {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d")
+        const fn = (data) => {
+            for (var i = 0; i < data.length; i += 4) {
+                var avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+                let v = avg < threshold ? 0 : 255;
+                data[i] = v;
+                data[i + 1] = v;
+                data[i + 2] = v;
+            }
+        }
+
+        return (image) => {
+            canvas.width = image.width;
+            canvas.height = image.height;
+            ctx.drawImage(image, 0, 0);
+            var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            var data = imageData.data;
+            fn(data)
+            ctx.putImageData(imageData, 0, 0);
+            return canvas;
         }
     }
 
     static brightness(value) {
-        return (data) => {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d")
+        const fn = (data) => {
             for (var i = 0; i < data.length; i += 4) {
                 data[i] = M.clamp(data[i] + value);
                 data[i + 1] = M.clamp(data[i + 1] + value);
                 data[i + 2] = M.clamp(data[i + 2] + value);
             }
         }
+
+        return (image) => {
+            canvas.width = image.width;
+            canvas.height = image.height;
+            ctx.drawImage(image, 0, 0);
+            var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            var data = imageData.data;
+            fn(data)
+            ctx.putImageData(imageData, 0, 0);
+            return canvas;
+        }
     }
 
-    static inverse(data) {
-        for (let i = 0; i < data.length; i += 4) {
-            data[i] = 255 - data[i];         // red
-            data[i + 1] = 255 - data[i + 1]; // green
-            data[i + 2] = 255 - data[i + 2]; // blue
-            // data[i + 3] = data[i + 3];    // alpha (transparency)
+    static inverse() {
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d")
+        const fn = (data) => {
+            for (let i = 0; i < data.length; i += 4) {
+                data[i] = 255 - data[i];         // red
+                data[i + 1] = 255 - data[i + 1]; // green
+                data[i + 2] = 255 - data[i + 2]; // blue
+            }
+        }
+
+        return (image) => {
+            canvas.width = image.width;
+            canvas.height = image.height;
+            ctx.drawImage(image, 0, 0);
+            var imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+            var data = imageData.data;
+            fn(data)
+            ctx.putImageData(imageData, 0, 0);
+            return canvas;
         }
     }
 }
@@ -120,20 +230,26 @@ class Layers {
 
     add(type, ...args) {
         switch (type) {
+            case "colorfill":
+                this.colorFill(args[0], args[1], args[2])
+                break;
             case "grayscale":
                 this.grayscale()
+                break;
+            case "threshold":
+                this.threshold(args[0])
                 break;
             case "brightness":
                 this.brightness(args[0])
                 break;
-            case "inverse":
-                this.inverse()
+            case "invert":
+                this.invert()
                 break;
             case "noise":
                 this.noise(args[0], args[1])
                 break;
             case "image":
-                this.image(args[0], args[1])
+                this.image(args[0], args[1], args[2])
                 break;
             case "layer":
                 this.layer(args[0], args[1]);
@@ -150,13 +266,42 @@ class Layers {
         }
     }
 
+    colorFill(r, g, b) {
+        this.unshift({
+            type: 'colorfill',
+            visible: true,
+            internal: false,
+            opts: {
+                blendMode: 'normal'
+            },
+            action: "applyColorfill",
+            fn: M.colorFill(r, g, b)
+        })
+    }
+
     grayscale() {
         this.unshift({
             type: 'grayscale',
             visible: true,
             internal: false,
+            opts: {
+                blendMode: 'normal'
+            },
             action: "applyGrayscale",
-            fn: M.grayscale
+            fn: M.grayscale()
+        })
+    }
+
+    threshold(threshold) {
+        this.unshift({
+            type: 'threshold',
+            visible: true,
+            internal: false,
+            opts: {
+                blendMode: 'normal'
+            },
+            action: "applyThreshold",
+            fn: M.threshold(threshold)
         })
     }
 
@@ -168,13 +313,13 @@ class Layers {
                 return i.bind(i)
             })
             f = [...c, {
-                type:"noise",
+                type: "noise",
                 visible: true,
                 fn: M.noise(factor)
             }]
         } else {
             f.push({
-                type:"noise",
+                type: "noise",
                 visible: true,
                 fn: M.noise(factor)
             })
@@ -189,30 +334,36 @@ class Layers {
             type: 'brightness',
             visible: true,
             internal: false,
+            opts: {
+                blendMode: 'normal'
+            },
             action: "applyBrightness",
             fn: M.brightness(args)
         })
     }
 
-    inverse() {
+    invert() {
         this.unshift({
-            type: 'grayscale',
+            type: 'invert',
             visible: true,
             internal: false,
+            opts: {
+                blendMode: 'normal'
+            },
             action: "applyInversion",
-            fn: M.inverse
+            fn: M.inverse()
         })
     }
 
-    image(opts, image) {
+    image(scale,opts,payload) {
         this.unshift({
             type: 'image',
             visible: true,
             internal: false,
             opts: opts,
-            filters:[],
+            filters: [],
             action: "addImage",
-            fn: M.image(image)
+            fn: M.image(scale,payload)
         })
     }
 
@@ -255,14 +406,6 @@ class Layers {
             d['brushPoints'] = [...p, ...brush['brushPoints']];
             d['opts'] = brush['opts']
         }
-        if (name === 'eraser') {
-            layer["brushes"] = {}
-        }
-
-        if (name === "brush") {
-            layer["eraser"] = {}
-        }
-        layer.fn = M.image(layer.fn())
         this.layers[index] = {
             ...layer,
             action: `${name}`,

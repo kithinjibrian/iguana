@@ -6,6 +6,7 @@ import loadImage from "./utils/upload.mjs";
 import Event from "./event/event.mjs";
 import Box from "./tools/selectors/box.mjs";
 import Brush from "./tools/brushes/brush.mjs";
+import {M} from "./layer/layer.mjs"
 
 const { createApp, ref, onMounted, reactive, computed, watch } = Vue;
 const { createVuetify } = Vuetify;
@@ -28,7 +29,17 @@ const app = createApp({
         //v models
         const tabHistorySwatch = ref("one"),
             tabLayerChannel = ref("one"),
-            blendModes = ref("normal");
+            blendModes = ref("normal"),
+            brightness = ref({
+                value:0,
+                min:-150,
+                max:150
+            }),
+            threshold = ref({
+                value:1,
+                min:1,
+                max:255
+            });
 
         //ui states
         let activeLayer = ref({
@@ -84,6 +95,18 @@ const app = createApp({
             }, true)
         })
 
+        // watch(brightness.value, (newBrightness) => {
+        //     layers.patch2(activeLayer.value.index, (layer) => {
+        //         layer['fn'] = M.brightness(newBrightness.value)
+        //     },true)
+        // })
+
+        // watch(threshold.value, (newThreshold) => {
+        //     layers.patch2(activeLayer.value.index, (layer) => {
+        //         layer['fn'] = M.threshold(newThreshold.value)
+        //     },true)
+        // })
+
         //methods
         const newImage = async (image) => {
             let loadedImage = await loadImage(image)
@@ -91,19 +114,24 @@ const app = createApp({
                 width: loadedImage.width,
                 height: loadedImage.height
             });
-            layers.add("image", {
-                blendMode: "normal",
-                scale: true
-            }, loadedImage);
+            layers.add("image", true, {
+                blendMode: "normal"
+            },{ 
+                image:loadedImage, 
+                w:canvas.value.width, 
+                h:canvas.value.height
+            });
             on.value = true
             caretaker.saveMemento(layers)
         }
 
         const placeImage = async (image) => {
             let loadedImage = await loadImage(image)
-            layers.add("image", {
+            layers.add("image", false, {
                 blendMode: "normal"
-            }, loadedImage);
+            }, {
+                image:loadedImage
+            });
             caretaker.saveMemento(layers)
         }
 
@@ -118,6 +146,13 @@ const app = createApp({
         const addAdjustment = (a, ...args) => {
             layers.add(a, ...args)
             caretaker.saveMemento(layers);
+        }
+
+        const setAdjustmentProperty = (type,index,value) => {
+            layers.patch2(index, (layer) => {
+                layer['fn'] = M[type](value)
+            },true)
+            caretaker.saveMemento(layers)
         }
 
         const addFilter = (a, ...args) => {
@@ -213,6 +248,9 @@ const app = createApp({
             tabHistorySwatch,
             tabLayerChannel,
             blendModes,
+            activeLayer,
+            brightness,
+            threshold,
             //dom elements
             canvas,
             on,
@@ -226,6 +264,7 @@ const app = createApp({
             setActiveLayer,
             revertStateTo,
             addAdjustment,
+            setAdjustmentProperty,
             addFilter,
             stepBack,
             stepForward

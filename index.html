@@ -5,7 +5,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Iguana - Image processor</title>
-  <link href="https://cdn.jsdelivr.net/npm/vuetify@3.0.5/dist/vuetify.min.css" rel="stylesheet" />
+  <link href="https://cdn.jsdelivr.net/npm/vuetify@3.3.5/dist/vuetify.min.css" rel="stylesheet" />
   <link href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css" rel="stylesheet" />
 </head>
 
@@ -179,8 +179,8 @@
                           </v-col>
                         </v-row>
                       </v-container>
-                      <v-list lines="one" style="max-height: 35vh" class="overflow-y-auto">
-                        <v-list-group v-for="(layer,n) in Array.from(layers)" :key="n">
+                      <v-list lines="one" style="max-height: 28vh" class="overflow-y-auto">
+                        <v-list-group v-for="(layer,n) in Array.from(layers)" :key="n" @click="setActiveLayer(n,layer)" link>
                           <template v-slot:activator="{ props }">
                             <v-list-item v-bind="props" :title="layer.type">
                               <template v-slot:prepend>
@@ -189,7 +189,7 @@
                             </v-list-item>
                           </template>
                           <v-list-item
-                          v-if="layer.filters.length > 0"
+                          v-if="'filters' in layer && layer.filters.length > 0"
                           v-for="(filter,n2) in layer.filters"
                           :key="n2"
                           :title="filter.type"
@@ -200,21 +200,6 @@
                           </v-list-item>
                         </v-list-group>
                       </v-list>
-                      <!-- <v-list lines="one" style="max-height: 35vh" class="overflow-y-auto">
-                        <v-list-item color="primary"
-                          v-for="(layer,n) in Array.from(layers)/*.filter(({internal})=>!internal)*/" :key="n"
-                          :value="n" @click="setActiveLayer(n,layer)" link>
-                          <template v-slot:prepend>
-                            <v-icon @click="setVisibility(n,layer.visible)">{{layer.visible ? 'mdi-eye' :
-                              'mdi-eye-off'}}</v-icon>
-                          </template>
-                          <v-list-group>
-                            <template v-slot:activator="{ props }">
-                              <v-list-item v-bind="props" prepend-icon="mdi-account-circle" title="Users"></v-list-item>
-                            </template>
-                          </v-list-group>
-                        </v-list-item>
-                      </v-list>-->
                     </v-window-item>
                     <v-window-item value="two"></v-window-item>
                   </v-window>
@@ -230,14 +215,20 @@
                   </template>
                   <v-card min-width="200">
                     <v-list>
+                      <v-list-item link color="primary" @click="addAdjustment('colorfill',20,20,40)">
+                        <v-list-item-title>Color Fill</v-list-item-title>
+                      </v-list-item>
                       <v-list-item link color="primary" @click="addAdjustment('grayscale')">
                         <v-list-item-title>Grayscale</v-list-item-title>
                       </v-list-item>
                       <v-list-item link color="primary" @click="addAdjustment('brightness',5)">
                         <v-list-item-title>Brightness</v-list-item-title>
                       </v-list-item>
-                      <v-list-item link color="primary" @click="addAdjustment('inverse')">
-                        <v-list-item-title>Inverse</v-list-item-title>
+                      <v-list-item link color="primary" @click="addAdjustment('invert')">
+                        <v-list-item-title>Invert</v-list-item-title>
+                      </v-list-item>
+                      <v-list-item link color="primary" @click="addAdjustment('threshold',1)">
+                        <v-list-item-title>Threshold</v-list-item-title>
                       </v-list-item>
                     </v-list>
                   </v-card>
@@ -252,7 +243,27 @@
         <v-list density="compact" nav>
           <v-list-item color="primary" prepend-icon="mdi-tune" title="properties" value="properties">
             <v-menu activator="parent" location="start" flat>
-              <v-card min-width="200">
+              <v-card min-width="200" height="50vh">
+                <v-card-text v-if="activeLayer.layer.type=='brightness'">
+                  <p>Brightness: {{brightness.value}}</p>
+                  <v-slider
+                  v-model="brightness.value"
+                  :min="brightness.min"
+                  :max="brightness.max"
+                  :step="1"
+                  @end="setAdjustmentProperty('brightness',activeLayer.index,brightness.value)"
+                  ></v-slider>
+                </v-card-text>
+                <v-card-text v-if="activeLayer.layer.type=='threshold'">
+                  <p>Threshold: {{threshold.value}}</p>
+                  <v-slider
+                  v-model="threshold.value"
+                  :min="threshold.min"
+                  :max="threshold.max"
+                  :step="1"
+                  @end="setAdjustmentProperty('threshold',activeLayer.index,threshold.value)"
+                  ></v-slider>
+                </v-card-text>
               </v-card>
             </v-menu>
           </v-list-item>
@@ -262,7 +273,7 @@
   </div>
   <script type="module" src="index.mjs"></script>
   <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/vuetify@3.3.1/dist/vuetify.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/vuetify@3.3.5/dist/vuetify.min.js"></script>
 </body>
 
 </html>

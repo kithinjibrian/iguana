@@ -4,7 +4,7 @@ export default class Renderer {
     constructor(canvas) {
         this.canvas = canvas;
         this.ctx = this.canvas.getContext("2d");
-        this.MAX_SIZE = 500;
+        this.MAX_SIZE = 900;
         this.listeners()
     }
 
@@ -61,10 +61,7 @@ export default class Renderer {
                     this.drawSelectorBox(layer.boxDimensions);
                     break;
                 default:
-                    var imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-                    var data = imageData.data;
-                    layer.fn(data)
-                    this.ctx.putImageData(imageData, 0, 0);
+                    this.drawImage(layer.opts,layer.fn(this.canvas))
                     break;
             }
         }
@@ -76,11 +73,7 @@ export default class Renderer {
 
     drawImage(opts, image) {
         this.ctx.globalCompositeOperation = opts.blendMode;
-        if ('scale' in opts) {
-            this.ctx.drawImage(image, 0, 0, image.width, image.height, 0, 0, this.canvas.width, this.canvas.height)
-        } else {
-            this.ctx.drawImage(image, 0, 0)
-        }
+        this.ctx.drawImage(image, 0, 0)
     }
 
     applyFilters(fn) {
