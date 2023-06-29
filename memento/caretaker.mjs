@@ -3,8 +3,9 @@ class Caretaker {
         if (!Caretaker.instance) {
             Caretaker.instance = this;
         }
-        this.mementos = [];
-        this.index = -1;
+        this.mementos = new Map();
+        this.index = 0;
+        this.restoreIndex = -1;
         return Caretaker.instance;
     }
 
@@ -12,38 +13,38 @@ class Caretaker {
         return this;
     }
 
-    set(snaps) {
-        this.snaps = snaps
-    }
-
-    saveMemento(originator) {
-        if(this.index != -1) {
-           this.mementos.splice(this.index + 1,this.mementos.length);
+    *id() {
+        while(true) {
+            yield this.index++
         }
-        this.index = -1;
-        this.mementos.push(originator.createMemento());  
     }
 
-    restoreMemento(index) {
-        this.index = index;
-        const memento = this.mementos[index];
-        this.snaps.restoreFromMemento(memento.state);
-        return this.snaps;
-    }
+    saveMemento(action,originator) {
+        let id = () => {
+            let generator = this.id();
+            let {value} = generator.next()
+            return value;
+        };
 
-    [Symbol.iterator]() {
-        let index = 0;
-        const mementos = this.mementos;
-
-        return {
-            next() {
-                if (index < mementos.length) {
-                    return { value: mementos[index++], done: false }
-                } else {
-                    return { done: true }
-                }
-            }
+        if(this.restoreIndex !== -1) {
+            let arr = Array.from(this.mementos);
+            arr.splice(this.restoreIndex,arr.length)
+            this.mementos = new Map(arr)
+            this.restoreIndex = -1
         }
+
+        this.mementos.set(action + id(),originator.createMemento());  
+    }
+
+    restoreMemento(id,action,originator) {
+        this.restoreIndex = id == 0 ? 1 : id;
+        const memento = this.mementos.get(action);
+        originator.restoreFromMemento(memento.state);
+        return originator;
+    }
+
+    *[Symbol.iterator]() {
+        yield* this.mementos
     }
 }
 

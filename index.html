@@ -21,10 +21,10 @@
           </template>
           <v-card min-width="200">
             <v-list>
-              <v-list-item color="primary" link @click.prevent="$refs.newimage.click()">
-                <span>New</span>
-                <v-file-input v-show="false" accept="image/png, image/jpeg, image/bmp" ref="newimage"
-                  @change="newImage"></v-file-input>
+              <v-list-item color="primary" link @click.prevent="$refs.openimage.click()">
+                <span>Open</span>
+                <v-file-input v-show="false" accept="image/png, image/jpeg, image/bmp" ref="openimage"
+                  @change="openImage"></v-file-input>
               </v-list-item>
               <v-list-item color="primary" link @click.prevent="$refs.placeimage.click()">
                 <span>Place</span>
@@ -73,8 +73,20 @@
           </template>
           <v-card min-width="200">
             <v-list>
-              <v-list-item color="primary" @click="addFilter('noise',0.5)" link>
+              <v-list-item color="primary" @click="addFilter('noise','noise')" link>
                 Noise
+              </v-list-item>
+              <v-list-item color="primary" @click="addFilter('conv','sharpen')" link>
+                Sharpen
+              </v-list-item>
+              <v-list-item color="primary" @click="addFilter('conv','emboss')" link>
+                Emboss
+              </v-list-item>
+              <v-list-item color="primary" @click="addFilter('conv','blur')" link>
+                Box Blur
+              </v-list-item>
+              <v-list-item color="primary" @click="addFilter('conv','sobel')" link>
+                Sobel
               </v-list-item>
             </v-list>
           </v-card>
@@ -134,9 +146,9 @@
                   <v-window v-model="tabHistorySwatch">
                     <v-window-item value="one">
                       <v-list lines="one" style="max-height: 35vh" class="overflow-y-auto">
-                        <v-list-item color="primary" v-for="(memento,n) in caretaker" :key="n"
-                          @click="revertStateTo(n,memento)" :value="n" link>
-                          {{memento.state[0]['action']}}
+                        <v-list-item color="primary" v-for="(memento,n) in Array.from(caretaker)" :key="n"
+                          @click="revertStateTo(n,memento[0])" :value="n" link>
+                          {{memento[0]}}
                         </v-list-item>
                       </v-list>
                     </v-window-item>
@@ -180,22 +192,20 @@
                         </v-row>
                       </v-container>
                       <v-list lines="one" style="max-height: 28vh" class="overflow-y-auto">
-                        <v-list-group v-for="(layer,n) in Array.from(layers)" :key="n" @click="setActiveLayer(n,layer)" link>
+                        <v-list-group v-for="(layer,n) in Array.from(layers).reverse()" :key="n" @click="setActiveLayer(layer[1])" link>
                           <template v-slot:activator="{ props }">
-                            <v-list-item v-bind="props" :title="layer.type">
+                            <v-list-item v-bind="props" :title="layer[1].type">
                               <template v-slot:prepend>
-                                <v-icon @click="setVisibility(n,layer.visible)">{{layer.visible ? 'mdi-eye' : 'mdi-eye-off'}}</v-icon>
+                                <v-icon @click="setVisibility(layer[1].id,layer[1].visible)">{{layer[1].visible ?
+                                  'mdi-eye' : 'mdi-eye-off'}}</v-icon>
                               </template>
                             </v-list-item>
                           </template>
-                          <v-list-item
-                          v-if="'filters' in layer && layer.filters.length > 0"
-                          v-for="(filter,n2) in layer.filters"
-                          :key="n2"
-                          :title="filter.type"
-                          :value="filter.type">
+                          <v-list-item v-if="'filters' in layer && layer.filters.length > 0"
+                            v-for="(filter,n2) in layer.filters" :key="n2" :title="filter.type" :value="filter.type">
                             <template v-slot:prepend>
-                              <v-icon @click="setFilterVisibility(n,n2,filter.visible)">{{filter.visible ? 'mdi-eye' : 'mdi-eye-off'}}</v-icon>
+                              <v-icon @click="setFilterVisibility(n,n2,filter.visible)">{{filter.visible ? 'mdi-eye' :
+                                'mdi-eye-off'}}</v-icon>
                             </template>
                           </v-list-item>
                         </v-list-group>
@@ -215,19 +225,19 @@
                   </template>
                   <v-card min-width="200">
                     <v-list>
-                      <v-list-item link color="primary" @click="addAdjustment('colorfill',20,20,40)">
+                      <v-list-item link color="primary" @click="addAdjustment('colorfill',{color:{r:20,g:20,b:40}})">
                         <v-list-item-title>Color Fill</v-list-item-title>
                       </v-list-item>
                       <v-list-item link color="primary" @click="addAdjustment('grayscale')">
                         <v-list-item-title>Grayscale</v-list-item-title>
                       </v-list-item>
-                      <v-list-item link color="primary" @click="addAdjustment('brightness',5)">
+                      <v-list-item link color="primary" @click="addAdjustment('brightness',{brightness:5})">
                         <v-list-item-title>Brightness</v-list-item-title>
                       </v-list-item>
                       <v-list-item link color="primary" @click="addAdjustment('invert')">
                         <v-list-item-title>Invert</v-list-item-title>
                       </v-list-item>
-                      <v-list-item link color="primary" @click="addAdjustment('threshold',1)">
+                      <v-list-item link color="primary" @click="addAdjustment('threshold',{threshold:30})">
                         <v-list-item-title>Threshold</v-list-item-title>
                       </v-list-item>
                     </v-list>
@@ -244,25 +254,15 @@
           <v-list-item color="primary" prepend-icon="mdi-tune" title="properties" value="properties">
             <v-menu activator="parent" location="start" flat>
               <v-card min-width="200" height="50vh">
-                <v-card-text v-if="activeLayer.layer.type=='brightness'">
+                <v-card-text v-if="activeLayer.type=='brightness'">
                   <p>Brightness: {{brightness.value}}</p>
-                  <v-slider
-                  v-model="brightness.value"
-                  :min="brightness.min"
-                  :max="brightness.max"
-                  :step="1"
-                  @end="setAdjustmentProperty('brightness',activeLayer.index,brightness.value)"
-                  ></v-slider>
+                  <v-slider v-model="brightness.value" :min="brightness.min" :max="brightness.max" :step="1"
+                    @end="setAdjustmentProperty(activeLayer.id,'brightness',brightness.value)"></v-slider>
                 </v-card-text>
-                <v-card-text v-if="activeLayer.layer.type=='threshold'">
+                <v-card-text v-if="activeLayer.type=='threshold'">
                   <p>Threshold: {{threshold.value}}</p>
-                  <v-slider
-                  v-model="threshold.value"
-                  :min="threshold.min"
-                  :max="threshold.max"
-                  :step="1"
-                  @end="setAdjustmentProperty('threshold',activeLayer.index,threshold.value)"
-                  ></v-slider>
+                  <v-slider v-model="threshold.value" :min="threshold.min" :max="threshold.max" :step="1"
+                    @end="setAdjustmentProperty(activeLayer.id,'threshold',threshold.value)"></v-slider>
                 </v-card-text>
               </v-card>
             </v-menu>

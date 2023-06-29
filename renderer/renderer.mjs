@@ -5,16 +5,17 @@ export default class Renderer {
         this.canvas = canvas;
         this.ctx = this.canvas.getContext("2d");
         this.MAX_SIZE = 900;
-        this.listeners()
+        this.init()
     }
 
-    listeners() {
+    init() {
         const self = this;
-        Pubsub.subscribe("layersChanged", (layers) => {
-            self.render(layers)
-        })
-        Pubsub.subscribe("init", (imageDimensions) => {
-            self.set(imageDimensions)
+        Pubsub.subscribe("init", (a) => {
+            self.set(a)
+        });
+
+        Pubsub.subscribe("render", (a) => {
+            self.render(a)
         })
     }
 
@@ -32,88 +33,21 @@ export default class Renderer {
         this.canvas.height = height;
     }
 
-    render(layers) {
-        //layers accessed from last to first
-        this.clearCanvas()
-        for (let n = layers.length - 1; n >= 0; n--) {
-            const layer = layers[n];
-            //skip invisible layers
-            if (!layer.visible) continue;
-            switch (layer.type) {
-                case "image":
-                case "layer":
-                    this.drawImage(layer.opts, layer.fn())
-                    if ('filters' in layer) {
-                        layer['filters'].map(i => {
-                            if(i.visible) {
-                                this.applyFilters(i.fn)
-                            }
-                        })
-                    }
-                    if ("brush" in layer && "brushPoints" in layer['brush']) {
-                        layer['brush']['brushPoints'].map(i => this.drawBrush(layer.fn(), i, layer['brush']['opts']['blendMode']));
-                    }
-                    if ("eraser" in layer && "brushPoints" in layer['eraser']) {
-                        layer['eraser']['brushPoints'].map(i => this.drawBrush(layer.fn(), i, layer['eraser']['opts']['blendMode']));
-                    }
-                    break;
-                case 'selector':
-                    this.drawSelectorBox(layer.boxDimensions);
-                    break;
-                default:
-                    this.drawImage(layer.opts,layer.fn(this.canvas))
-                    break;
-            }
-        }
-    }
-
     clearCanvas() {
         this.ctx.clearRect(0, 0, this.canvas.width, this.canvas.height)
     }
 
-    drawImage(opts, image) {
-        this.ctx.globalCompositeOperation = opts.blendMode;
-        this.ctx.drawImage(image, 0, 0)
-    }
-
-    applyFilters(fn) {
-        var imageData = this.ctx.getImageData(0, 0, this.canvas.width, this.canvas.height);
-        var data = imageData.data;
-        fn(data)
-        this.ctx.putImageData(imageData, 0, 0);
-    }
-
-    drawBrush(canvas, points, blendMode) {
-        let ctx = canvas.getContext("2d");
-        if (points.length > 3) {
-            ctx.strokeStyle = 'red';
-            ctx.lineWidth = 10;
-            ctx.lineJoin = 'round';
-            ctx.lineCap = 'round';
-            ctx.globalCompositeOperation = blendMode;
-
-            ctx.save()
-            ctx.beginPath();
-            ctx.moveTo(points[0].x, points[0].y);
-
-            for (let y = 1; y < points.length - 2; y++) {
-                const c = (points[y].x + points[y + 1].x) / 2;
-                const d = (points[y].y + points[y + 1].y) / 2;
-                ctx.quadraticCurveTo(points[y].x, points[y].y, c, d);
-            }
-
-            ctx.lineTo(points[points.length - 1].x, points[points.length - 1].y);
-            ctx.stroke();
-            ctx.restore()
+    render(layersMap) {
+        this.clearCanvas()
+        const layers = Array.from(layersMap.values());
+        for (let i = 0; i < layers.length; i++) {
+            const layer = layers[i];
+            if (!layer.visible) {
+                continue;
+            };
+            const canvas = layer.render(this.canvas);
+            this.ctx.globalCompositeOperation = layer.blendMode
+            this.ctx.drawImage(canvas, 0, 0)
         }
-
-        return canvas;
-    }
-
-    drawSelectorBox(dimensions) {
-        this.ctx.globalCompositeOperation = "normal"
-        const { x, y, x2, y2 } = dimensions;
-        this.ctx.strokeStyle = "red";
-        this.ctx.strokeRect(x, y, x2 - x, y2 - y)
     }
 }
