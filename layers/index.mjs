@@ -37,10 +37,9 @@ class Layers {
         return Layers.instance;
     }
 
-    *id() {
-        while (true) {
-            yield this.index++
-        }
+    id() {
+      this.index++
+			return this.index
     }
 
     get() {
@@ -77,13 +76,19 @@ class Layers {
         Pubsub.publish("render", this.layers)
     }
 
+		addBetween(key,opts) {
+			const keys = Array.from(this.layers.keys());
+			const selectKey = [...keys][keys.length - 1];
+			const select = this.layers.get(selectKey);
+			this.layers.delete(selectKey);
+			let _key = this.layers.has(key) ? key + this.id() : key;
+			this.layers.set(_key,this.layerTypes[key]({id: _key, ...opts}))
+			this.layers.set(selectKey, select)
+			this.publishLayerChange()
+		}
+
     add(key, opts) {
-        let id = () => {
-            let generator = this.id();
-            let { value } = generator.next()
-            return value;
-        };
-        let _key = this.layers.has(key) ? key + id() : key;
+        let _key = this.layers.has(key) ? key + this.id() : key;
         this.layers.set(_key, this.layerTypes[key]({ id: _key, ...opts }));
         this.publishLayerChange()
     }
@@ -97,6 +102,12 @@ class Layers {
     getLayer(key) {
         return this.layers.get(key)
     }
+
+		getLastLayer() {
+			const keys = Array.from(this.layers.keys());
+			const key = [...keys][keys.length - 1]
+			return this.layers.get(key)
+		}
 
     createMemento() {
         return new Memento(this.clone())

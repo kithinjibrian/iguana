@@ -1,176 +1,298 @@
 <!DOCTYPE html>
 <html lang="en">
+    <head>
+        <meta charset="UTF-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+        <title>Iguana - Image processor</title>
+        <link
+            href="https://cdn.jsdelivr.net/npm/vuetify@3.3.5/dist/vuetify.min.css"
+            rel="stylesheet"
+        />
+        <link
+            href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css"
+            rel="stylesheet"
+        />
+    </head>
 
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Iguana - Image processor</title>
-  <link href="https://cdn.jsdelivr.net/npm/vuetify@3.3.5/dist/vuetify.min.css" rel="stylesheet" />
-  <link href="https://cdn.jsdelivr.net/npm/@mdi/font@4.x/css/materialdesignicons.min.css" rel="stylesheet" />
-</head>
-
-<body>
-  <div id="app">
-    <v-app id="inspire" theme="dark">
-      <v-system-bar class="text-white">
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn variant="text" density="compact" v-bind="props">
-              File
-            </v-btn>
-          </template>
-          <v-card min-width="200">
-            <v-list>
-              <v-list-item color="primary" link @click.prevent="$refs.openimage.click()">
-                <span>Open</span>
-                <v-file-input v-show="false" accept="image/png, image/jpeg, image/bmp" ref="openimage"
-                  @change="openImage"></v-file-input>
-              </v-list-item>
-              <v-list-item color="primary" link @click.prevent="$refs.placeimage.click()">
-                <span>Place</span>
-                <v-file-input v-show="false" accept="image/png, image/jpeg, image/bmp" ref="placeimage"
-                  @change="placeImage"></v-file-input>
-              </v-list-item>
-            </v-list>
-          </v-card>
-        </v-menu>
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn variant="text" density="compact" v-bind="props">
-              Edit
-            </v-btn>
-          </template>
-          <v-card min-width="200">
-            <v-list>
-              <v-list-item color="primary" @click="stepBack()" link>
-                Undo
-              </v-list-item>
-              <v-list-item color="primary" @click="stepForward()" link>
-                Redo
-              </v-list-item>
-            </v-list>
-          </v-card>
-        </v-menu>
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn variant="text" density="compact" v-bind="props">
-              Layer
-            </v-btn>
-          </template>
-          <v-card min-width="200">
-            <v-list>
-              <v-list-item color="primary" @click="newLayer()" link>
-                New layer
-              </v-list-item>
-            </v-list>
-          </v-card>
-        </v-menu>
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn variant="text" density="compact" v-bind="props">
-              Filter
-            </v-btn>
-          </template>
-          <v-card min-width="200">
-            <v-list>
-              <v-list-item color="primary" @click="addFilter('noise','noise')" link>
-                Noise
-              </v-list-item>
-              <v-list-item color="primary" @click="addFilter('conv','sharpen')" link>
-                Sharpen
-              </v-list-item>
-              <v-list-item color="primary" @click="addFilter('conv','emboss')" link>
-                Emboss
-              </v-list-item>
-              <v-list-item color="primary" @click="addFilter('conv','blur')" link>
-                Box Blur
-              </v-list-item>
-              <v-list-item color="primary" @click="addFilter('conv','sobel')" link>
-                Sobel
-              </v-list-item>
-            </v-list>
-          </v-card>
-        </v-menu>
-        <v-menu>
-          <template v-slot:activator="{ props }">
-            <v-btn variant="text" density="compact" v-bind="props">
-              About
-            </v-btn>
-          </template>
-          <v-card min-width="200">
-            <v-card-title>
-              Hi There!
-            </v-card-title>
-            <v-card-text>
-              <p class="pa-2">My name is <b>Kithinji Brian</b> and I'm the creator of Iguana.</p>
-              <p class="pa-2">I'm a 22 year old computer programmer. I was born in Nyahururu, Kenya.</p>
-              <p class="pa-2">Iguana is a fun project for me to learn software development.</p>
-              <p class="pa-2">Thank you.</p>
-            </v-card-text>
-          </v-card>
-        </v-menu>
-        <v-spacer />
-      </v-system-bar>
-      <v-navigation-drawer rail permanent>
-        <v-list density="compact" mandatory nav>
-          <v-list-item color="primary" prepend-icon="mdi-rectangle-outline" title="box" value="box"
-            @click="activate('box')"></v-list-item>
-          <v-list-item color="primary" prepend-icon="mdi-brush" title="brush" value="brush"
-            @click="activate('brush')"></v-list-item>
-          <v-list-item color="primary" prepend-icon="mdi-eraser" title="eraser" value="eraser"
-            @click="activate('eraser')"></v-list-item>
-        </v-list>
-      </v-navigation-drawer>
-      <v-main>
-        <v-container>
-          <v-row>
-            <v-col cols="12" class="pa-15">
-              <v-sheet v-show="on" class="mx-auto" :height="canvas.height" :width="canvas.width">
-                <canvas id="canvas" ref="canvas"></canvas>
-              </v-sheet>
-            </v-col>
-          </v-row>
-        </v-container>
-      </v-main>
-      <v-navigation-drawer location="right" permanent>
-        <v-container>
-          <v-row>
-            <v-col cols="12" class="ma-0 pa-0">
-              <v-card height="45vh" flat>
-                <v-tabs v-model="tabHistorySwatch" density="compact">
-                  <v-tab value="one">History</v-tab>
-                  <v-tab value="two">Swatches</v-tab>
-                </v-tabs>
-
-                <v-card-text>
-                  <v-window v-model="tabHistorySwatch">
-                    <v-window-item value="one">
-                      <v-list lines="one" style="max-height: 35vh" class="overflow-y-auto">
-                        <v-list-item color="primary" v-for="(memento,n) in Array.from(caretaker)" :key="n"
-                          @click="revertStateTo(n,memento[0])" :value="n" link>
-                          {{memento[0]}}
-                        </v-list-item>
-                      </v-list>
-                    </v-window-item>
-                    <v-window-item value="two"></v-window-item>
-                  </v-window>
-                </v-card-text>
-              </v-card>
-            </v-col>
-            <v-col cols="12" class="ma-0 pa-0">
-              <v-card height="45vh" flat>
-                <v-tabs v-model="tabLayerChannel" density="compact">
-                  <v-tab value="one">Layers</v-tab>
-                  <v-tab value="two">channels</v-tab>
-                </v-tabs>
-
-                <v-card-text>
-                  <v-window v-model="tabLayerChannel">
-                    <v-window-item value="one">
-                      <v-container class="pa-0 ma-0">
+    <body>
+        <div id="app">
+            <v-app id="inspire" theme="dark">
+                <v-system-bar class="text-white">
+                    <v-menu>
+                        <template v-slot:activator="{ props }">
+                            <v-btn
+                                variant="text"
+                                density="compact"
+                                v-bind="props"
+                            >
+                                File
+                            </v-btn>
+                        </template>
+                        <v-card min-width="200">
+                            <v-list>
+                                <v-list-item
+                                    color="primary"
+                                    link
+                                    @click.prevent="$refs.openimage.click()"
+                                >
+                                    <span>Open</span>
+                                    <v-file-input
+                                        v-show="false"
+                                        accept="image/png, image/jpeg, image/bmp"
+                                        ref="openimage"
+                                        @change="openImage"
+                                    ></v-file-input>
+                                </v-list-item>
+                                <v-list-item
+                                    color="primary"
+                                    link
+                                    @click.prevent="$refs.placeimage.click()"
+                                >
+                                    <span>Place</span>
+                                    <v-file-input
+                                        v-show="false"
+                                        accept="image/png, image/jpeg, image/bmp"
+                                        ref="placeimage"
+                                        @change="placeImage"
+                                    ></v-file-input>
+                                </v-list-item>
+                            </v-list>
+                        </v-card>
+                    </v-menu>
+                    <v-menu>
+                        <template v-slot:activator="{ props }">
+                            <v-btn
+                                variant="text"
+                                density="compact"
+                                v-bind="props"
+                            >
+                                Edit
+                            </v-btn>
+                        </template>
+                        <v-card min-width="200">
+                            <v-list>
+                                <v-list-item
+                                    color="primary"
+                                    @click="stepBack()"
+                                    link
+                                >
+                                    Undo
+                                </v-list-item>
+                                <v-list-item
+                                    color="primary"
+                                    @click="stepForward()"
+                                    link
+                                >
+                                    Redo
+                                </v-list-item>
+                            </v-list>
+                        </v-card>
+                    </v-menu>
+                    <v-menu>
+                        <template v-slot:activator="{ props }">
+                            <v-btn
+                                variant="text"
+                                density="compact"
+                                v-bind="props"
+                            >
+                                Layer
+                            </v-btn>
+                        </template>
+                        <v-card min-width="200">
+                            <v-list>
+                                <v-list-item
+                                    color="primary"
+                                    @click="newLayer()"
+                                    link
+                                >
+                                    New layer
+                                </v-list-item>
+                            </v-list>
+                        </v-card>
+                    </v-menu>
+                    <v-menu>
+                        <template v-slot:activator="{ props }">
+                            <v-btn
+                                variant="text"
+                                density="compact"
+                                v-bind="props"
+                            >
+                                Filter
+                            </v-btn>
+                        </template>
+                        <v-card min-width="200">
+                            <v-list>
+                                <v-list-item
+                                    color="primary"
+                                    @click="addFilter('noise','noise')"
+                                    link
+                                >
+                                    Noise
+                                </v-list-item>
+                                <v-list-item
+                                    color="primary"
+                                    @click="addFilter('conv','sharpen')"
+                                    link
+                                >
+                                    Sharpen
+                                </v-list-item>
+                                <v-list-item
+                                    color="primary"
+                                    @click="addFilter('conv','emboss')"
+                                    link
+                                >
+                                    Emboss
+                                </v-list-item>
+                                <v-list-item
+                                    color="primary"
+                                    @click="addFilter('conv','blur')"
+                                    link
+                                >
+                                    Box Blur
+                                </v-list-item>
+                                <v-list-item
+                                    color="primary"
+                                    @click="addFilter('conv','sobel')"
+                                    link
+                                >
+                                    Sobel
+                                </v-list-item>
+                            </v-list>
+                        </v-card>
+                    </v-menu>
+                    <v-menu>
+                        <template v-slot:activator="{ props }">
+                            <v-btn
+                                variant="text"
+                                density="compact"
+                                v-bind="props"
+                            >
+                                About
+                            </v-btn>
+                        </template>
+                        <v-card min-width="200">
+                            <v-card-title> Hi There! </v-card-title>
+                            <v-card-text>
+                                <p class="pa-2">
+                                    My name is <b>Kithinji Brian</b> and I'm the
+                                    creator of Iguana.
+                                </p>
+                                <p class="pa-2">
+                                    I'm a 22 year old computer programmer. I was
+                                    born in Nyahururu, Kenya.
+                                </p>
+                                <p class="pa-2">
+                                    Iguana is a fun project for me to learn
+                                    software development.
+                                </p>
+                                <p class="pa-2">Thank you.</p>
+                            </v-card-text>
+                        </v-card>
+                    </v-menu>
+                    <v-spacer />
+                </v-system-bar>
+                <v-navigation-drawer rail permanent>
+                    <v-list density="compact" mandatory nav>
+                        <v-list-item
+                            color="primary"
+                            prepend-icon="mdi-rectangle-outline"
+                            title="box"
+                            value="box"
+                            @click="activate('box')"
+                        ></v-list-item>
+                        <v-list-item
+                            color="primary"
+                            prepend-icon="mdi-brush"
+                            title="brush"
+                            value="brush"
+                            @click="activate('brush')"
+                        ></v-list-item>
+                        <v-list-item
+                            color="primary"
+                            prepend-icon="mdi-eraser"
+                            title="eraser"
+                            value="eraser"
+                            @click="activate('eraser')"
+                        ></v-list-item>
+                    </v-list>
+                </v-navigation-drawer>
+                <v-main>
+                    <v-container>
                         <v-row>
-                          <v-col cols="12">
-                            <v-select v-model="blendModes" variant="outlined" density="compact" :items="[
+                            <v-col cols="12" class="pa-15">
+                                <v-sheet
+                                    v-show="on"
+                                    class="mx-auto"
+                                    :height="canvas.height"
+                                    :width="canvas.width"
+                                >
+                                    <canvas id="canvas" ref="canvas"></canvas>
+                                </v-sheet>
+                            </v-col>
+                        </v-row>
+                    </v-container>
+                </v-main>
+                <v-navigation-drawer location="right" permanent>
+                    <v-container>
+                        <v-row>
+                            <v-col cols="12" class="ma-0 pa-0">
+                                <v-card height="45vh" flat>
+                                    <v-tabs
+                                        v-model="tabHistorySwatch"
+                                        density="compact"
+                                    >
+                                        <v-tab value="one">History</v-tab>
+                                        <v-tab value="two">Swatches</v-tab>
+                                    </v-tabs>
+
+                                    <v-card-text>
+                                        <v-window v-model="tabHistorySwatch">
+                                            <v-window-item value="one">
+                                                <v-list
+                                                    lines="one"
+                                                    style="max-height: 35vh"
+                                                    class="overflow-y-auto"
+                                                >
+                                                    <v-list-item
+                                                        color="primary"
+                                                        v-for="(memento,n) in Array.from(caretaker)"
+                                                        :key="n"
+                                                        @click="revertStateTo(n,memento[0])"
+                                                        :value="n"
+                                                        link
+                                                    >
+                                                        {{memento[0]}}
+                                                    </v-list-item>
+                                                </v-list>
+                                            </v-window-item>
+                                            <v-window-item
+                                                value="two"
+                                            ></v-window-item>
+                                        </v-window>
+                                    </v-card-text>
+                                </v-card>
+                            </v-col>
+                            <v-col cols="12" class="ma-0 pa-0">
+                                <v-card height="45vh" flat>
+                                    <v-tabs
+                                        v-model="tabLayerChannel"
+                                        density="compact"
+                                    >
+                                        <v-tab value="one">Layers</v-tab>
+                                        <v-tab value="two">channels</v-tab>
+                                    </v-tabs>
+
+                                    <v-card-text>
+                                        <v-window v-model="tabLayerChannel">
+                                            <v-window-item value="one">
+                                                <v-container class="pa-0 ma-0">
+                                                    <v-row>
+                                                        <v-col cols="12">
+                                                            <v-select
+                                                                v-model="blendModes"
+                                                                variant="outlined"
+                                                                density="compact"
+                                                                :items="[
                             'normal',
                             'multiply',
                             'screen',
@@ -187,93 +309,195 @@
                             'saturation',
                             'color',
                             'luminosity'
-                            ]"></v-select>
-                          </v-col>
+                            ]"
+                                                            ></v-select>
+                                                        </v-col>
+                                                    </v-row>
+                                                </v-container>
+                                                <v-list
+                                                    lines="one"
+                                                    style="max-height: 28vh"
+                                                    class="overflow-y-auto"
+                                                >
+                                                    <template
+                                                        v-for="(layer,n) in Array.from(layers).reverse()"
+                                                        :key="n"
+                                                    >
+                                                        <v-list-group
+                                                            v-show="!layer[1].internal"
+                                                            @click="setActiveLayer(layer[1])"
+                                                            link
+                                                        >
+                                                            <template
+                                                                v-slot:activator="{ props }"
+                                                            >
+                                                                <v-list-item
+                                                                    v-bind="props"
+                                                                    :title="layer[1].type"
+                                                                >
+                                                                    <template
+                                                                        v-slot:prepend
+                                                                    >
+                                                                        <v-icon
+                                                                            @click="setVisibility(layer[1].id,layer[1].visible)"
+                                                                            >{{layer[1].visible
+                                                                            ?
+                                                                            'mdi-eye'
+                                                                            :
+                                                                            'mdi-eye-off'}}</v-icon
+                                                                        >
+                                                                    </template>
+                                                                </v-list-item>
+                                                            </template>
+                                                            <v-list-item
+                                                                v-if="'filters' in layer && layer.filters.length > 0"
+                                                                v-for="(filter,n2) in layer.filters"
+                                                                :key="n2"
+                                                                :title="filter.type"
+                                                                :value="filter.type"
+                                                            >
+                                                                <template
+                                                                    v-slot:prepend
+                                                                >
+                                                                    <v-icon
+                                                                        @click="setFilterVisibility(n,n2,filter.visible)"
+                                                                        >{{filter.visible
+                                                                        ?
+                                                                        'mdi-eye'
+                                                                        :
+                                                                        'mdi-eye-off'}}</v-icon
+                                                                    >
+                                                                </template>
+                                                            </v-list-item>
+                                                        </v-list-group>
+                                                    </template>
+                                                </v-list>
+                                            </v-window-item>
+                                            <v-window-item
+                                                value="two"
+                                            ></v-window-item>
+                                        </v-window>
+                                    </v-card-text>
+                                </v-card>
+                            </v-col>
+                            <v-col cols="12" class="ma-0 pa-0">
+                                <v-card height="5vh" flat>
+                                    <v-icon
+                                        icon="mdi-layers-plus"
+                                        class="mr-3"
+                                        @click="newLayer()"
+                                    ></v-icon>
+                                    <v-menu>
+                                        <template v-slot:activator="{ props }">
+                                            <v-icon
+                                                icon="mdi-circle-slice-4"
+                                                class="mr-3"
+                                                v-bind="props"
+                                            ></v-icon>
+                                        </template>
+                                        <v-card min-width="200">
+                                            <v-list>
+                                                <v-list-item
+                                                    link
+                                                    color="primary"
+                                                    @click="addAdjustment('colorfill',{color:{r:20,g:20,b:40}})"
+                                                >
+                                                    <v-list-item-title
+                                                        >Color
+                                                        Fill</v-list-item-title
+                                                    >
+                                                </v-list-item>
+                                                <v-list-item
+                                                    link
+                                                    color="primary"
+                                                    @click="addAdjustment('grayscale')"
+                                                >
+                                                    <v-list-item-title
+                                                        >Grayscale</v-list-item-title
+                                                    >
+                                                </v-list-item>
+                                                <v-list-item
+                                                    link
+                                                    color="primary"
+                                                    @click="addAdjustment('brightness',{brightness:5})"
+                                                >
+                                                    <v-list-item-title
+                                                        >Brightness</v-list-item-title
+                                                    >
+                                                </v-list-item>
+                                                <v-list-item
+                                                    link
+                                                    color="primary"
+                                                    @click="addAdjustment('invert')"
+                                                >
+                                                    <v-list-item-title
+                                                        >Invert</v-list-item-title
+                                                    >
+                                                </v-list-item>
+                                                <v-list-item
+                                                    link
+                                                    color="primary"
+                                                    @click="addAdjustment('threshold',{threshold:30})"
+                                                >
+                                                    <v-list-item-title
+                                                        >Threshold</v-list-item-title
+                                                    >
+                                                </v-list-item>
+                                            </v-list>
+                                        </v-card>
+                                    </v-menu>
+                                    <v-icon
+                                        icon="mdi-delete"
+                                        class="mr-2"
+                                    ></v-icon>
+                                </v-card>
+                            </v-col>
                         </v-row>
-                      </v-container>
-                      <v-list lines="one" style="max-height: 28vh" class="overflow-y-auto">
-                        <v-list-group v-for="(layer,n) in Array.from(layers).reverse()" :key="n" @click="setActiveLayer(layer[1])" link>
-                          <template v-slot:activator="{ props }">
-                            <v-list-item v-bind="props" :title="layer[1].type">
-                              <template v-slot:prepend>
-                                <v-icon @click="setVisibility(layer[1].id,layer[1].visible)">{{layer[1].visible ?
-                                  'mdi-eye' : 'mdi-eye-off'}}</v-icon>
-                              </template>
-                            </v-list-item>
-                          </template>
-                          <v-list-item v-if="'filters' in layer && layer.filters.length > 0"
-                            v-for="(filter,n2) in layer.filters" :key="n2" :title="filter.type" :value="filter.type">
-                            <template v-slot:prepend>
-                              <v-icon @click="setFilterVisibility(n,n2,filter.visible)">{{filter.visible ? 'mdi-eye' :
-                                'mdi-eye-off'}}</v-icon>
-                            </template>
-                          </v-list-item>
-                        </v-list-group>
-                      </v-list>
-                    </v-window-item>
-                    <v-window-item value="two"></v-window-item>
-                  </v-window>
-                </v-card-text>
-              </v-card>
-            </v-col>
-            <v-col cols="12" class="ma-0 pa-0">
-              <v-card height="5vh" flat>
-                <v-icon icon="mdi-layers-plus" class="mr-3" @click="newLayer()"></v-icon>
-                <v-menu>
-                  <template v-slot:activator="{ props }">
-                    <v-icon icon="mdi-circle-slice-4" class="mr-3" v-bind="props"></v-icon>
-                  </template>
-                  <v-card min-width="200">
-                    <v-list>
-                      <v-list-item link color="primary" @click="addAdjustment('colorfill',{color:{r:20,g:20,b:40}})">
-                        <v-list-item-title>Color Fill</v-list-item-title>
-                      </v-list-item>
-                      <v-list-item link color="primary" @click="addAdjustment('grayscale')">
-                        <v-list-item-title>Grayscale</v-list-item-title>
-                      </v-list-item>
-                      <v-list-item link color="primary" @click="addAdjustment('brightness',{brightness:5})">
-                        <v-list-item-title>Brightness</v-list-item-title>
-                      </v-list-item>
-                      <v-list-item link color="primary" @click="addAdjustment('invert')">
-                        <v-list-item-title>Invert</v-list-item-title>
-                      </v-list-item>
-                      <v-list-item link color="primary" @click="addAdjustment('threshold',{threshold:30})">
-                        <v-list-item-title>Threshold</v-list-item-title>
-                      </v-list-item>
+                    </v-container>
+                </v-navigation-drawer>
+                <v-navigation-drawer rail location="right" permanent>
+                    <v-list density="compact" nav>
+                        <v-list-item
+                            color="primary"
+                            prepend-icon="mdi-tune"
+                            title="properties"
+                            value="properties"
+                        >
+                            <v-menu activator="parent" location="start" flat>
+                                <v-card min-width="200" height="50vh">
+                                    <v-card-text
+                                        v-if="activeLayer.type=='brightness'"
+                                    >
+                                        <p>Brightness: {{brightness.value}}</p>
+                                        <v-slider
+                                            v-model="brightness.value"
+                                            :min="brightness.min"
+                                            :max="brightness.max"
+                                            :step="1"
+                                            @end="setAdjustmentProperty(activeLayer.id,'brightness',brightness.value)"
+                                        ></v-slider>
+                                    </v-card-text>
+                                    <v-card-text
+                                        v-if="activeLayer.type=='threshold'"
+                                    >
+                                        <p>Threshold: {{threshold.value}}</p>
+                                        <v-slider
+                                            v-model="threshold.value"
+                                            :min="threshold.min"
+                                            :max="threshold.max"
+                                            :step="1"
+                                            @end="setAdjustmentProperty(activeLayer.id,'threshold',threshold.value)"
+                                        ></v-slider>
+                                    </v-card-text>
+                                </v-card>
+                            </v-menu>
+                        </v-list-item>
                     </v-list>
-                  </v-card>
-                </v-menu>
-                <v-icon icon="mdi-delete" class="mr-2"></v-icon>
-              </v-card>
-            </v-col>
-          </v-row>
-        </v-container>
-      </v-navigation-drawer>
-      <v-navigation-drawer rail location="right" permanent>
-        <v-list density="compact" nav>
-          <v-list-item color="primary" prepend-icon="mdi-tune" title="properties" value="properties">
-            <v-menu activator="parent" location="start" flat>
-              <v-card min-width="200" height="50vh">
-                <v-card-text v-if="activeLayer.type=='brightness'">
-                  <p>Brightness: {{brightness.value}}</p>
-                  <v-slider v-model="brightness.value" :min="brightness.min" :max="brightness.max" :step="1"
-                    @end="setAdjustmentProperty(activeLayer.id,'brightness',brightness.value)"></v-slider>
-                </v-card-text>
-                <v-card-text v-if="activeLayer.type=='threshold'">
-                  <p>Threshold: {{threshold.value}}</p>
-                  <v-slider v-model="threshold.value" :min="threshold.min" :max="threshold.max" :step="1"
-                    @end="setAdjustmentProperty(activeLayer.id,'threshold',threshold.value)"></v-slider>
-                </v-card-text>
-              </v-card>
-            </v-menu>
-          </v-list-item>
-        </v-list>
-      </v-navigation-drawer>
-    </v-app>
-  </div>
-  <script type="module" src="index.mjs"></script>
-  <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/vuetify@3.3.5/dist/vuetify.min.js"></script>
-</body>
-
+                </v-navigation-drawer>
+            </v-app>
+        </div>
+        <script type="module" src="index.mjs"></script>
+        <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/vuetify@3.3.5/dist/vuetify.min.js"></script>
+    </body>
 </html>
